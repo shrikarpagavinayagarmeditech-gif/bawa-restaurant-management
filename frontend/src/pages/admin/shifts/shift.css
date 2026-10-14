@@ -1,0 +1,1032 @@
+/* =========================================
+   SHIFTS PAGE
+========================================= */
+
+.shifts-page {
+  width: 100%;
+  min-height: 100%;
+  padding-bottom: 30px;
+}
+
+
+/* =========================================
+   HEADER
+========================================= */
+
+.shifts-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.shifts-header h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.shifts-header p {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+
+/* =========================================
+   ADD BUTTON
+========================================= */
+
+.shift-add-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  height: 44px;
+  padding: 0 18px;
+
+  border: none;
+  border-radius: 10px;
+
+  background: #8b1c1c;
+  color: #ffffff;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.shift-add-button span {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.shift-add-button:hover {
+  background: #6f1414;
+  transform: translateY(-1px);
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.12);
+}
+
+
+/* =========================================
+   SUMMARY
+========================================= */
+
+.shift-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.shift-summary-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+
+  min-height: 90px;
+  padding: 18px;
+
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
+.shift-summary-icon {
+  width: 48px;
+  height: 48px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+
+  border-radius: 12px;
+
+  background: #fef2f2;
+  color: #8b1c1c;
+
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.shift-summary-icon.active {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.shift-summary-icon.inactive {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.shift-summary-card span {
+  display: block;
+  margin-bottom: 5px;
+
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.shift-summary-card strong {
+  display: block;
+
+  font-size: 24px;
+  line-height: 1;
+
+  color: #111827;
+}
+
+
+/* =========================================
+   TOOLBAR
+========================================= */
+
+.shift-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+
+  margin-bottom: 16px;
+}
+
+.shift-search {
+  width: 100%;
+  max-width: 360px;
+
+  height: 44px;
+
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  padding: 0 14px;
+
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+}
+
+.shift-search span {
+  font-size: 20px;
+  color: #9ca3af;
+}
+
+.shift-search input {
+  width: 100%;
+  height: 100%;
+
+  border: none;
+  outline: none;
+
+  background: transparent;
+
+  font-size: 14px;
+  color: #1f2937;
+}
+
+.shift-search input::placeholder {
+  color: #9ca3af;
+}
+
+.shift-search:focus-within {
+  border-color: #8b1c1c;
+  box-shadow: 0 0 0 3px rgba(139, 28, 28, 0.08);
+}
+
+.shift-result-count {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+
+/* =========================================
+   ERROR
+========================================= */
+
+.shift-page-error {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+
+  background: #fef2f2;
+  color: #b91c1c;
+
+  font-size: 14px;
+}
+
+
+/* =========================================
+   TABLE CARD
+========================================= */
+
+.shift-table-card {
+  overflow: hidden;
+
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
+.shift-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.shift-table {
+  width: 100%;
+  min-width: 700px;
+
+  border-collapse: collapse;
+}
+
+.shift-table thead {
+  background: #f9fafb;
+}
+
+.shift-table th {
+  padding: 15px 18px;
+
+  border-bottom: 1px solid #e5e7eb;
+
+  text-align: left;
+
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.shift-table td {
+  padding: 17px 18px;
+
+  border-bottom: 1px solid #f1f5f9;
+
+  font-size: 14px;
+  color: #374151;
+
+  vertical-align: middle;
+}
+
+.shift-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.shift-table tbody tr {
+  transition: background 0.15s ease;
+}
+
+.shift-table tbody tr:hover {
+  background: #fafafa;
+}
+
+
+/* =========================================
+   SHIFT NAME
+========================================= */
+
+.shift-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.shift-row-icon {
+  width: 38px;
+  height: 38px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+
+  border-radius: 10px;
+
+  background: #fef2f2;
+  color: #8b1c1c;
+
+  font-size: 17px;
+}
+
+.shift-name-cell strong {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+}
+
+
+/* =========================================
+   TIME
+========================================= */
+
+.shift-time {
+  display: inline-flex;
+  align-items: center;
+
+  padding: 7px 10px;
+
+  border-radius: 7px;
+
+  background: #f8fafc;
+
+  color: #374151;
+
+  font-size: 13px;
+  font-weight: 500;
+}
+
+
+/* =========================================
+   STATUS
+========================================= */
+
+.shift-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  padding: 6px 10px;
+
+  border-radius: 20px;
+
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.shift-status.active {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.shift-status.inactive {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.status-dot {
+  font-size: 8px;
+}
+
+
+/* =========================================
+   ACTIONS
+========================================= */
+
+.shift-action-heading {
+  text-align: right !important;
+}
+
+.shift-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.shift-edit-button,
+.shift-delete-button {
+  height: 34px;
+  padding: 0 11px;
+
+  border-radius: 7px;
+
+  font-size: 12px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.shift-edit-button {
+  border: 1px solid #dbeafe;
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.shift-edit-button:hover {
+  background: #dbeafe;
+}
+
+.shift-delete-button {
+  border: 1px solid #fee2e2;
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.shift-delete-button:hover {
+  background: #fee2e2;
+}
+
+
+/* =========================================
+   LOADING
+========================================= */
+
+.shift-loading {
+  min-height: 260px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: #6b7280;
+  font-size: 14px;
+}
+
+
+/* =========================================
+   EMPTY
+========================================= */
+
+.shift-empty {
+  min-height: 320px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  padding: 40px 20px;
+
+  text-align: center;
+}
+
+.shift-empty-icon {
+  width: 64px;
+  height: 64px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin-bottom: 16px;
+
+  border-radius: 18px;
+
+  background: #fef2f2;
+  color: #8b1c1c;
+
+  font-size: 28px;
+}
+
+.shift-empty h3 {
+  margin: 0 0 7px;
+
+  font-size: 17px;
+  color: #111827;
+}
+
+.shift-empty p {
+  margin: 0 0 20px;
+
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.shift-empty-button {
+  height: 40px;
+  padding: 0 15px;
+
+  border: none;
+  border-radius: 8px;
+
+  background: #8b1c1c;
+  color: #ffffff;
+
+  font-size: 13px;
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+.shift-empty-button:hover {
+  background: #6f1414;
+}
+
+
+/* =========================================
+   MODAL OVERLAY
+========================================= */
+
+.shift-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 20px;
+
+  background: rgba(15, 23, 42, 0.55);
+
+  overflow-y: auto;
+}
+
+
+/* =========================================
+   MODAL
+========================================= */
+
+.shift-modal {
+  width: 100%;
+  max-width: 520px;
+
+  max-height: calc(100vh - 40px);
+
+  overflow-y: auto;
+
+  background: #ffffff;
+  border-radius: 16px;
+
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+
+  animation: shiftModalIn 0.2s ease;
+}
+
+@keyframes shiftModalIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+
+/* =========================================
+   MODAL HEADER
+========================================= */
+
+.shift-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 15px;
+
+  padding: 22px 22px 18px;
+
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.shift-modal-header h2 {
+  margin: 0;
+
+  font-size: 20px;
+  font-weight: 700;
+
+  color: #111827;
+}
+
+.shift-modal-header p {
+  margin: 5px 0 0;
+
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.shift-modal-close {
+  width: 34px;
+  height: 34px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+
+  border: none;
+  border-radius: 8px;
+
+  background: #f3f4f6;
+  color: #6b7280;
+
+  font-size: 22px;
+  line-height: 1;
+
+  cursor: pointer;
+}
+
+.shift-modal-close:hover {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+
+/* =========================================
+   FORM
+========================================= */
+
+.shift-form {
+  padding: 22px;
+}
+
+.shift-form-group {
+  margin-bottom: 18px;
+}
+
+.shift-form-group label {
+  display: block;
+
+  margin-bottom: 7px;
+
+  font-size: 13px;
+  font-weight: 600;
+
+  color: #374151;
+}
+
+.shift-form-group label span {
+  margin-left: 3px;
+  color: #dc2626;
+}
+
+.shift-form-group input {
+  width: 100%;
+  height: 44px;
+
+  box-sizing: border-box;
+
+  padding: 0 12px;
+
+  border: 1px solid #d1d5db;
+  border-radius: 9px;
+
+  outline: none;
+
+  background: #ffffff;
+
+  font-family: inherit;
+  font-size: 14px;
+  color: #111827;
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.shift-form-group input:focus {
+  border-color: #8b1c1c;
+  box-shadow: 0 0 0 3px rgba(139, 28, 28, 0.08);
+}
+
+.shift-form-group input::placeholder {
+  color: #9ca3af;
+}
+
+
+/* =========================================
+   TIME ROW
+========================================= */
+
+.shift-time-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+
+/* =========================================
+   ACTIVE SWITCH
+========================================= */
+
+.shift-active-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+
+  margin-top: 4px;
+  padding: 15px;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+
+  background: #f9fafb;
+}
+
+.shift-active-row strong {
+  display: block;
+
+  font-size: 13px;
+  color: #374151;
+}
+
+.shift-active-row p {
+  margin: 4px 0 0;
+
+  font-size: 12px;
+  line-height: 1.5;
+
+  color: #6b7280;
+}
+
+
+/* =========================================
+   SWITCH
+========================================= */
+
+.shift-switch {
+  position: relative;
+
+  width: 46px;
+  height: 26px;
+
+  flex-shrink: 0;
+}
+
+.shift-switch input {
+  width: 0;
+  height: 0;
+
+  opacity: 0;
+}
+
+.shift-switch span {
+  position: absolute;
+  inset: 0;
+
+  border-radius: 20px;
+
+  background: #d1d5db;
+
+  cursor: pointer;
+
+  transition: background 0.2s ease;
+}
+
+.shift-switch span::before {
+  content: "";
+
+  position: absolute;
+
+  width: 20px;
+  height: 20px;
+
+  left: 3px;
+  top: 3px;
+
+  border-radius: 50%;
+
+  background: #ffffff;
+
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+
+  transition: transform 0.2s ease;
+}
+
+.shift-switch input:checked + span {
+  background: #8b1c1c;
+}
+
+.shift-switch input:checked + span::before {
+  transform: translateX(20px);
+}
+
+
+/* =========================================
+   FORM ERROR
+========================================= */
+
+.shift-form-error {
+  margin-top: 16px;
+  padding: 11px 12px;
+
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+
+  background: #fef2f2;
+  color: #b91c1c;
+
+  font-size: 13px;
+}
+
+
+/* =========================================
+   MODAL FOOTER
+========================================= */
+
+.shift-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+
+  margin-top: 22px;
+  padding-top: 18px;
+
+  border-top: 1px solid #f1f5f9;
+}
+
+.shift-cancel-button,
+.shift-save-button {
+  height: 42px;
+
+  padding: 0 17px;
+
+  border-radius: 8px;
+
+  font-size: 13px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition: background 0.2s ease;
+}
+
+.shift-cancel-button {
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #374151;
+}
+
+.shift-cancel-button:hover {
+  background: #f9fafb;
+}
+
+.shift-save-button {
+  min-width: 115px;
+
+  border: none;
+  background: #8b1c1c;
+  color: #ffffff;
+}
+
+.shift-save-button:hover {
+  background: #6f1414;
+}
+
+.shift-cancel-button:disabled,
+.shift-save-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+
+/* =========================================
+   TABLET
+========================================= */
+
+@media (max-width: 900px) {
+
+  .shifts-header h1 {
+    font-size: 25px;
+  }
+
+  .shift-summary {
+    gap: 12px;
+  }
+
+  .shift-summary-card {
+    padding: 15px;
+  }
+
+  .shift-summary-icon {
+    width: 44px;
+    height: 44px;
+  }
+
+}
+
+
+/* =========================================
+   MOBILE
+========================================= */
+
+@media (max-width: 700px) {
+
+  .shifts-page {
+    padding-bottom: 20px;
+  }
+
+  .shifts-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .shifts-header h1 {
+    font-size: 23px;
+  }
+
+  .shift-add-button {
+    width: 100%;
+  }
+
+  .shift-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .shift-summary-card {
+    min-height: 76px;
+  }
+
+  .shift-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .shift-search {
+    max-width: none;
+  }
+
+  .shift-result-count {
+    text-align: right;
+  }
+
+  .shift-table-card {
+    border-radius: 12px;
+  }
+
+  .shift-table {
+    min-width: 680px;
+  }
+
+  .shift-modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .shift-modal {
+    max-height: 92vh;
+    border-radius: 18px 18px 0 0;
+  }
+
+  .shift-time-row {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .shift-form {
+    padding: 18px;
+  }
+
+  .shift-modal-header {
+    padding: 18px;
+  }
+
+  .shift-modal-footer {
+    flex-direction: column-reverse;
+  }
+
+  .shift-cancel-button,
+  .shift-save-button {
+    width: 100%;
+  }
+
+}
+
+
+/* =========================================
+   SMALL MOBILE
+========================================= */
+
+@media (max-width: 420px) {
+
+  .shifts-header h1 {
+    font-size: 21px;
+  }
+
+  .shifts-header p {
+    font-size: 13px;
+  }
+
+  .shift-summary-card strong {
+    font-size: 21px;
+  }
+
+  .shift-active-row {
+    align-items: flex-start;
+  }
+
+  .shift-modal-header h2 {
+    font-size: 18px;
+  }
+
+}

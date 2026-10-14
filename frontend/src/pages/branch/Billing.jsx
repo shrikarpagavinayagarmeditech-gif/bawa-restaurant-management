@@ -1,0 +1,1304 @@
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import api from "../../api/api.js";
+
+import {
+  getTodayBillingSummary,
+  holdBilling,
+  getHeldBilling,
+  getDraftBilling,
+  updateDraftBilling,
+  completeBilling,
+  cancelBilling,
+} from "../../controllers/billing.controller.js";
+
+import ReceiptPrint from "./ReceiptPrint.jsx";
+import "./Billing.css";
+
+const money = (value) => `₹${Number(value || 0).toFixed(2)}`;
+
+const getMenuArray = (response) => {
+  const root = response?.data;
+  if (Array.isArray(root)) return root;
+  if (Array.isArray(root?.data?.menu)) return root.data.menu;
+  if (Array.isArray(root?.data)) return root.data;
+  if (Array.isArray(root?.menu)) return root.menu;
+  if (Array.isArray(root?.foodItems)) return root.foodItems;
+  if (Array.isArray(root?.items)) return root.items;
+  return [];
+};
+
+const getFoodId = (item) =>
+  item?.id || item?.foodItemId || item?.foodItem?.id;
+
+const getFoodName = (item) =>
+  item?.name || item?.foodItem?.name || "Food Item";
+
+const getFoodPrice = (item) =>
+  Number(
+    item?.effectiveRate ??
+      item?.branchRate ??
+      item?.rate ??
+      item?.price ??
+      item?.defaultRate ??
+      item?.foodItem?.effectiveRate ??
+      item?.foodItem?.branchRate ??
+      item?.foodItem?.rate ??
+      item?.foodItem?.defaultRate ??
+      0
+  );
+
+const getFoodImage = (item) => {
+  const image =
+    item?.imageUrl ||
+    item?.image ||
+    item?.foodItem?.imageUrl ||
+    item?.foodItem?.image ||
+    null;
+
+  if (!image) return null;
+  if (/^(https?:\/\/|data:)/i.test(image)) return image;
+
+  return `http://localhost:5000${image.startsWith("/") ? "" : "/"}${image}`;
+};
+
+const getFoodCategory = (item) =>
+  item?.category || item?.foodItem?.category || null;
+
+const getUserFromStorage = () => {
+  try {
+    for (const key of ["user", "currentUser", "authUser", "userData"]) {
+      const value = localStorage.getItem(key);
+      if (value) {
+        const parsed = JSON.parse(value);
+        if (parsed) return parsed;
+      }
+    }
+  } catch (error) {
+    console.error("User storage read error:", error);
+  }
+  return null;
+};
+
+const getFoodType = (item) => {
+  const value =
+    item?.foodType ??
+    item?.type ??
+    item?.foodCategoryType ??
+    item?.isVeg ??
+    item?.is_veg ??
+    item?.foodItem?.foodType ??
+    item?.foodItem?.type ??
+    item?.foodItem?.isVeg ??
+    item?.foodItem?.is_veg;
+
+  const normalized = String(value).toLowerCase();
+
+  if (
+    value === true ||
+    value === 1 ||
+    normalized === "true" ||
+    normalized === "veg" ||
+    normalized === "vegetarian"
+  ) return "VEG";
+
+  if (
+    value === false ||
+    value === 0 ||
+    normalized === "false" ||
+    normalized === "non-veg" ||
+    normalized === "nonveg" ||
+    normalized === "non_veg"
+  ) return "NON_VEG";
+
+  return "UNKNOWN";
+};
+
+// Branch details printed at the top of the receipt (below the logo).
+// If the address is blank on the receipt, check where the branch address
+// lives in your logged-in user object (console.log(user)) and adjust here.
+const getBranchInfo = (user) => {
+  const b = user?.branch || {};
+
+  const address =
+    b.address ||
+    user?.branchAddress ||
+    [b.addressLine1, b.addressLine2, b.city, b.state, b.pincode]
+      .filter(Boolean)
+      .join(", ");
+
+  return {
+    name: b.name || user?.branchName || "",
+    address: address || "",
+    phone: b.phone || b.mobile || user?.branchPhone || "",
+    gstin: b.gstin || b.gstNumber || "",
+  };
+};
+
+function Billing() {
+  // Menu
+  const [menuItems, setMenuItems] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState("ALL");
+  const [search, setSearch] = useState("");
+  const [foodType, setFoodType] = useState("ALL");
+  const [serviceMode, setServiceMode] = useState("DINE_IN");
+  const searchInputRef = useRef(null);
+
+  // Cart
+  const [cart, setCart] = useState([]);
+  const [discount, setDiscount] = useState("");
+
+  // Payment
+  const [paymentMethod, setPaymentMethod] = useState("CASH");
+  const [cashAmount, setCashAmount] = useState("");
+  const [upiAmount, setUpiAmount] = useState("");
+
+  // Summary and held bills
+  const [summary, setSummary] = useState({
+    bills: 0,
+    sales: 0,
+    cash: 0,
+    upi: 0,
+    outstanding: 0,
+  });
+  const [heldBills, setHeldBills] = useState([]);
+
+  // UI
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [showHeldBills, setShowHeldBills] = useState(false);
+  const [showPayment, setShowPayment] = useState(false);
+  const [showCancel, setShowCancel] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+
+  // Current bill
+  const [draftId, setDraftId] = useState(null);
+  const [holdNumber, setHoldNumber] = useState(null);
+  const [invoiceNumber, setInvoiceNumber] = useState(null);
+
+  // Printing
+  const [printPayload, setPrintPayload] = useState(null);
+  const printedInvoiceRef = useRef(null);
+
+  const user = useMemo(() => getUserFromStorage(), []);
+
+  // Preload the receipt logo so it is ready before window.print() runs.
+  useEffect(() => {
+    const img = new Image();
+    img.src = "/images/bawa-logo.png";
+  }, []);
+
+  // Print only after a successful completion and a known invoice number.
+  useEffect(() => {
+    if (!printPayload?.invoiceNumber) return;
+
+    const invoiceKey = String(printPayload.invoiceNumber);
+
+    if (printedInvoiceRef.current === invoiceKey) return;
+
+    const timer = window.setTimeout(() => {
+      // Prevent a duplicate print trigger for this invoice in this page.
+      printedInvoiceRef.current = invoiceKey;
+      window.print();
+    }, 500);
+
+    return () => window.clearTimeout(timer);
+  }, [printPayload]);
+
+  // Load menu
+  const loadMenu = async () => {
+    try {
+      const response = await api.get("/branch/menu");
+      const items = getMenuArray(response);
+      setMenuItems(items);
+
+      const categoryMap = new Map();
+
+      items.forEach((item) => {
+        const category = getFoodCategory(item);
+        if (category?.id) categoryMap.set(String(category.id), category);
+      });
+
+      setCategories(Array.from(categoryMap.values()));
+    } catch (error) {
+      console.error("Menu error:", error);
+    }
+  };
+
+  // Load today's summary
+  const loadSummary = async () => {
+    try {
+      const response = await getTodayBillingSummary();
+      const data = response?.data || response || {};
+
+      setSummary({
+        bills: Number(data.bills ?? data.totalBills ?? data.completedBills ?? 0),
+        sales: Number(data.sales ?? data.totalSales ?? data.totalAmount ?? 0),
+        cash: Number(data.cash ?? data.cashAmount ?? 0),
+        upi: Number(data.upi ?? data.upiAmount ?? 0),
+        outstanding: Number(data.outstanding ?? 0),
+      });
+    } catch (error) {
+      console.error("Summary error:", error);
+    }
+  };
+
+  // Load held bills
+  const loadHeldBills = async () => {
+    try {
+      const response = await getHeldBilling();
+      const data = response?.data || response || [];
+      setHeldBills(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Held bills error:", error);
+    }
+  };
+
+  // Initial loading and keyboard shortcuts
+  useEffect(() => {
+    let mounted = true;
+
+    const init = async () => {
+      setLoading(true);
+      await Promise.all([loadMenu(), loadSummary(), loadHeldBills()]);
+      if (mounted) setLoading(false);
+    };
+
+    init();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === "F3") {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+      }
+
+      if (event.key === "F9") {
+        event.preventDefault();
+        if (cart.length > 0 && !invoiceNumber) openPaymentModal();
+      }
+
+      if (event.key === "Escape") {
+        setShowPayment(false);
+        setShowHeldBills(false);
+        setShowCancel(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [cart.length, invoiceNumber]);
+
+  // Filter menu
+  const filteredMenu = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    return menuItems.filter((item) => {
+      const name = getFoodName(item).toLowerCase();
+      const category = getFoodCategory(item);
+      const categoryId =
+        category?.id || item?.categoryId || item?.foodItem?.categoryId;
+
+      const matchesSearch = !query || name.includes(query);
+      const matchesCategory =
+        selectedCategory === "ALL" ||
+        String(categoryId) === String(selectedCategory);
+
+      const type = getFoodType(item);
+      const matchesType =
+        foodType === "ALL" ||
+        (foodType === "VEG" && type === "VEG") ||
+        (foodType === "NON_VEG" && type === "NON_VEG");
+
+      return matchesSearch && matchesCategory && matchesType;
+    });
+  }, [menuItems, search, selectedCategory, foodType]);
+
+  // Totals
+  const subtotal = useMemo(
+    () =>
+      cart.reduce(
+        (sum, item) =>
+          sum + Number(item.price || 0) * Number(item.quantity || 0),
+        0
+      ),
+    [cart]
+  );
+
+  const discountAmount = Math.min(
+    Math.max(Number(discount || 0), 0),
+    subtotal
+  );
+  const taxableAmount = subtotal - discountAmount;
+  const cgst = taxableAmount * 0.025;
+  const sgst = taxableAmount * 0.025;
+  const total = taxableAmount + cgst + sgst;
+
+  // Add food item
+  const addToCart = (item) => {
+    if (invoiceNumber) return;
+
+    const id = getFoodId(item);
+    if (id == null) return;
+
+    const price = getFoodPrice(item);
+    if (!Number.isFinite(price) || price < 0) return;
+
+    setCart((current) => {
+      const existing = current.find((x) => String(x.id) === String(id));
+
+      if (existing) {
+        return current.map((x) =>
+          String(x.id) === String(id)
+            ? { ...x, quantity: Number(x.quantity || 0) + 1 }
+            : x
+        );
+      }
+
+      return [
+        ...current,
+        {
+          id: String(id),
+          name: getFoodName(item),
+          price,
+          quantity: 1,
+          image: getFoodImage(item),
+        },
+      ];
+    });
+  };
+
+  const changeQuantity = (id, amount) => {
+    if (invoiceNumber) return;
+
+    const delta = Number(amount);
+    if (!Number.isFinite(delta) || delta === 0) return;
+
+    setCart((current) =>
+      current.reduce((next, item) => {
+        if (String(item.id) !== String(id)) {
+          next.push(item);
+          return next;
+        }
+
+        const quantity = Math.max(0, Number(item.quantity || 0) + delta);
+        if (quantity > 0) next.push({ ...item, quantity });
+        return next;
+      }, [])
+    );
+  };
+
+  const decreaseQuantity = (id) => changeQuantity(id, -1);
+  const increaseQuantity = (id) => changeQuantity(id, 1);
+
+  const removeItem = (id) => {
+    if (invoiceNumber) return;
+    setCart((current) =>
+      current.filter((item) => String(item.id) !== String(id))
+    );
+  };
+
+  const clearBill = () => {
+    if (!cart.length && !draftId) return;
+
+    if (!window.confirm("Clear current bill?")) return;
+
+    setCart([]);
+    setDiscount("");
+    setDraftId(null);
+    setHoldNumber(null);
+    setCashAmount("");
+    setUpiAmount("");
+    setPaymentMethod("CASH");
+  };
+
+  const startNewBill = () => {
+    setCart([]);
+    setDiscount("");
+    setCashAmount("");
+    setUpiAmount("");
+    setPaymentMethod("CASH");
+    setDraftId(null);
+    setHoldNumber(null);
+    setInvoiceNumber(null);
+    setPrintPayload(null);
+    setCancelReason("");
+  };
+
+  // Payment method selection
+  const selectPayment = (method) => {
+    setPaymentMethod(method);
+
+    const amount = Number(total.toFixed(2));
+
+    if (method === "CASH") {
+      setCashAmount(String(amount));
+      setUpiAmount("");
+    } else if (method === "UPI") {
+      setCashAmount("");
+      setUpiAmount(String(amount));
+    } else {
+      setCashAmount("");
+      setUpiAmount("");
+    }
+  };
+
+  const openPaymentModal = () => {
+    selectPayment("CASH");
+    setShowPayment(true);
+  };
+
+  // Hold bill
+  const handleHold = async () => {
+    if (!cart.length) {
+      alert("Please add food items.");
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      const payload = {
+        items: cart.map((item) => ({
+          foodItemId: item.id,
+          quantity: item.quantity,
+        })),
+        discountAmount,
+      };
+
+      const response = draftId
+        ? await updateDraftBilling({ id: draftId, ...payload })
+        : await holdBilling(payload);
+
+      const data = response?.data || response || {};
+      const order = data?.order || data;
+
+      setDraftId(data?.id || order?.id || null);
+      setHoldNumber(data?.holdNumber || order?.holdNumber || null);
+
+      await loadHeldBills();
+
+      alert(
+        data?.holdNumber || order?.holdNumber
+          ? `${data?.holdNumber || order?.holdNumber} held successfully.`
+          : "Bill held successfully."
+      );
+    } catch (error) {
+      console.error("Hold error:", error);
+      alert(error.response?.data?.message || "Unable to hold bill.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Resume held bill
+  const resumeBill = async (bill) => {
+    try {
+      setSaving(true);
+
+      const response = await getDraftBilling(bill.id);
+      const data = response?.data || response || {};
+      const order = data?.order || data;
+      const items = order?.items || order?.orderItems || [];
+
+      const restored = items.map((item) => {
+        const food = item?.foodItem || item?.food || {};
+
+        return {
+          id: String(item?.foodItemId || food?.id || item?.id || ""),
+          name: food?.name || item?.name || "Food Item",
+          price: Number(
+            item?.unitPrice ??
+              item?.price ??
+              food?.rate ??
+              food?.defaultRate ??
+              0
+          ),
+          quantity: Number(item?.quantity || 1),
+          image: getFoodImage(food),
+        };
+      });
+
+      setCart(restored);
+      setDiscount(Number(order?.discountAmount || 0) || "");
+      setDraftId(order?.id || bill.id);
+      setHoldNumber(order?.holdNumber || bill?.holdNumber || null);
+      setInvoiceNumber(null);
+      setPrintPayload(null);
+      setShowHeldBills(false);
+    } catch (error) {
+      console.error("Resume error:", error);
+      alert(error.response?.data?.message || "Unable to resume bill.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Delete a held draft using the existing cancel endpoint
+  const deleteHeldBill = async (bill) => {
+    const label = bill?.holdNumber || "this held bill";
+
+    if (!window.confirm(`Delete ${label}? This cannot be undone.`)) return;
+
+    try {
+      setSaving(true);
+
+      await cancelBilling({
+        id: bill.id,
+        cancellationReason: "Deleted from held bills",
+      });
+
+      if (String(draftId) === String(bill.id)) {
+        setCart([]);
+        setDiscount("");
+        setDraftId(null);
+        setHoldNumber(null);
+        setCashAmount("");
+        setUpiAmount("");
+      }
+
+      await loadHeldBills();
+      alert(`${label} deleted.`);
+    } catch (error) {
+      console.error("Delete held bill error:", error);
+      alert(error.response?.data?.message || "Unable to delete held bill.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Complete payment and prepare receipt only after API success
+  const handleComplete = async () => {
+    if (!cart.length) {
+      alert("Please add food items.");
+      return;
+    }
+
+    const amount = Number(total.toFixed(2));
+    const cash = Number(cashAmount || 0);
+    const upi = Number(upiAmount || 0);
+
+    if (
+      paymentMethod === "CASH" &&
+      Math.abs(cash - amount) > 0.01
+    ) {
+      alert(`Cash amount must be ${money(amount)}.`);
+      return;
+    }
+
+    if (
+      paymentMethod === "UPI" &&
+      Math.abs(upi - amount) > 0.01
+    ) {
+      alert(`UPI amount must be ${money(amount)}.`);
+      return;
+    }
+
+    if (
+      paymentMethod === "SPLIT" &&
+      (cash < 0 || upi < 0 || Math.abs(cash + upi - amount) > 0.01)
+    ) {
+      alert(`Cash + UPI must equal ${money(amount)}.`);
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      let currentId = draftId;
+
+      if (!currentId) {
+        const holdResponse = await holdBilling({
+          items: cart.map((item) => ({
+            foodItemId: item.id,
+            quantity: item.quantity,
+          })),
+          discountAmount,
+        });
+
+        const holdData = holdResponse?.data || holdResponse || {};
+        currentId = holdData?.id || holdData?.order?.id;
+      }
+
+      if (!currentId) {
+        throw new Error("The backend did not return an order ID.");
+      }
+
+      const completeResponse = await completeBilling({
+        id: currentId,
+        paymentMethod,
+        cashAmount:
+          paymentMethod === "CASH" || paymentMethod === "SPLIT"
+            ? cash
+            : 0,
+        upiAmount:
+          paymentMethod === "UPI" || paymentMethod === "SPLIT"
+            ? upi
+            : 0,
+      });
+
+      const completeData =
+        completeResponse?.data || completeResponse || {};
+
+      const completedOrder =
+        completeData?.order ||
+        completeData?.data?.order ||
+        completeData;
+
+      const generatedInvoiceNumber =
+        completeData?.invoiceNumber ||
+        completeData?.data?.invoiceNumber ||
+        completedOrder?.invoiceNumber ||
+        null;
+
+      // Preserve the completed bill on screen.
+      setInvoiceNumber(generatedInvoiceNumber);
+
+      // Prepare receipt only when the completion API succeeded
+      // and supplied a usable invoice number.
+      if (generatedInvoiceNumber) {
+        setPrintPayload({
+          invoiceNumber: generatedInvoiceNumber,
+          branch: getBranchInfo(user),
+          date: new Date().toLocaleString("en-IN"),
+          serviceMode,
+          cashier: user?.name || user?.username || "Branch User",
+          items: cart.map((item) => ({ ...item })),
+          subtotal,
+          discountAmount,
+          taxableAmount,
+          cgst,
+          sgst,
+          total,
+          paymentMethod,
+          cashAmount:
+            paymentMethod === "CASH" || paymentMethod === "SPLIT"
+              ? cash
+              : 0,
+          upiAmount:
+            paymentMethod === "UPI" || paymentMethod === "SPLIT"
+              ? upi
+              : 0,
+        });
+      }
+
+      setShowPayment(false);
+
+      alert(
+        generatedInvoiceNumber
+          ? `Bill completed successfully.\nInvoice No: ${generatedInvoiceNumber}`
+          : "Bill completed successfully, but no invoice number was returned. Receipt was not auto-printed."
+      );
+
+      await Promise.all([loadSummary(), loadHeldBills()]);
+    } catch (error) {
+      console.error("Complete error:", error);
+      alert(
+        error.response?.data?.message ||
+          error.message ||
+          "Unable to complete bill."
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Cancel bill
+  const handleCancel = async () => {
+    if (!draftId) {
+      setShowCancel(false);
+      clearBill();
+      return;
+    }
+
+    if (!cancelReason.trim()) {
+      alert("Please enter cancellation reason.");
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      await cancelBilling({
+        id: draftId,
+        cancellationReason: cancelReason.trim(),
+      });
+
+      setCart([]);
+      setDiscount("");
+      setDraftId(null);
+      setHoldNumber(null);
+      setInvoiceNumber(null);
+      setPrintPayload(null);
+      setCancelReason("");
+      setShowCancel(false);
+
+      await loadHeldBills();
+      alert("Bill cancelled successfully.");
+    } catch (error) {
+      console.error("Cancel error:", error);
+      alert(error.response?.data?.message || "Unable to cancel bill.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="billing-loading">
+        <div className="billing-spinner" />
+        <h3>Loading Billing</h3>
+        <p>Loading branch menu...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bawa-pos">
+      {/* Print-only receipt */}
+      <ReceiptPrint receipt={printPayload} />
+
+      <header className="pos-header">
+        <div className="pos-logo-area">
+          <div className="pos-logo">B</div>
+          <div>
+            <strong>BAWA</strong>
+            <span>RESTAURANT MANAGEMENT</span>
+          </div>
+        </div>
+
+        <div className="pos-header-info">
+          <div className="header-pill">▣ Branch</div>
+          <div className="header-pill">● Active Shift</div>
+
+          <button
+            type="button"
+            className="held-header-btn"
+            onClick={() => setShowHeldBills(true)}
+          >
+            ⏸ Held Bills
+            {heldBills.length > 0 && <b>{heldBills.length}</b>}
+          </button>
+        </div>
+
+        <div className="pos-header-right">
+          <div className="header-search">
+            ⌕
+            <input
+              ref={searchInputRef}
+              placeholder="Search dish..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            <kbd>F3</kbd>
+          </div>
+
+          <div className="sync-status"><i /> SYNCED</div>
+
+          <div className="cashier-info">
+            <div>
+              <strong>{user?.name || user?.username || "Branch User"}</strong>
+              <span>{user?.role || "BRANCH"}</span>
+            </div>
+            <div className="cashier-avatar">
+              {(user?.name || user?.username || "B")[0]?.toUpperCase()}
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="pos-main">
+        <section className="menu-panel">
+          <div className="service-tabs">
+            {[
+              ["DINE_IN", "🍽 Dine In"],
+              ["TAKEAWAY", "🛍 Takeaway"],
+              ["ONLINE", "⇄ Online"],
+            ].map(([value, label]) => (
+              <button
+                type="button"
+                key={value}
+                className={serviceMode === value ? "active" : ""}
+                onClick={() => setServiceMode(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div className="food-search">
+            <span>⌕</span>
+            <input
+              ref={searchInputRef}
+              placeholder="Search food item..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            {search && (
+              <button type="button" onClick={() => setSearch("")}>×</button>
+            )}
+          </div>
+
+          <div className="category-row">
+            <button
+              type="button"
+              className={selectedCategory === "ALL" ? "active" : ""}
+              onClick={() => setSelectedCategory("ALL")}
+            >
+              All Items <span>{menuItems.length}</span>
+            </button>
+
+            {categories.map((category) => (
+              <button
+                type="button"
+                key={category.id}
+                className={
+                  String(selectedCategory) === String(category.id)
+                    ? "active"
+                    : ""
+                }
+                onClick={() => setSelectedCategory(category.id)}
+              >
+                {category.name}
+              </button>
+            ))}
+          </div>
+
+          <div className="food-grid">
+            {filteredMenu.length === 0 ? (
+              <div className="menu-empty">
+                <div>🍽️</div>
+                <strong>No food items found</strong>
+                <span>
+                  {menuItems.length === 0
+                    ? "No menu items available for this branch."
+                    : "Try another search or category."}
+                </span>
+              </div>
+            ) : (
+              filteredMenu.map((item, index) => {
+                const id = getFoodId(item);
+                const price = getFoodPrice(item);
+                const image = getFoodImage(item);
+                const cartItem = cart.find(
+                  (x) => String(x.id) === String(id)
+                );
+
+                return (
+                  <article
+                    className="food-card"
+                    key={String(id ?? index)}
+                    onClick={() => addToCart(item)}
+                  >
+                    <div className="food-card-top">
+                      <span>#{String(index + 1).padStart(2, "0")}</span>
+                      <i>●</i>
+                    </div>
+
+                    <div className="food-image">
+                      {image ? (
+                        <img src={image} alt={getFoodName(item)} />
+                      ) : (
+                        <div className="food-placeholder">🍛</div>
+                      )}
+                      {cartItem && (
+                        <span className="cart-count">
+                          {cartItem.quantity}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="food-details">
+                      <strong>{getFoodName(item)}</strong>
+                      <span>{getFoodCategory(item)?.name || "Food"}</span>
+                    </div>
+
+                    <div className="food-card-bottom">
+                      <b>{money(price)}</b>
+                      <button
+                        type="button"
+                        disabled={!!invoiceNumber}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          addToCart(item);
+                        }}
+                      >
+                        + ADD
+                      </button>
+                    </div>
+                  </article>
+                );
+              })
+            )}
+          </div>
+        </section>
+
+        <aside className="bill-panel">
+          <div className="bill-header">
+            <div>
+              <h2>
+                {invoiceNumber
+                  ? `INVOICE ${invoiceNumber}`
+                  : holdNumber
+                    ? `HOLD ${holdNumber}`
+                    : "BILL #NEW"}
+              </h2>
+              <span>
+                {invoiceNumber
+                  ? "Completed Bill"
+                  : holdNumber
+                    ? "Held Bill"
+                    : "Current Bill"}
+              </span>
+            </div>
+
+            {invoiceNumber ? (
+              <button
+                type="button"
+                className="new-bill-btn"
+                onClick={startNewBill}
+              >
+                🧾 New Bill
+              </button>
+            ) : (
+              <button type="button" onClick={clearBill}>Clear</button>
+            )}
+          </div>
+
+          <div className="bill-items">
+            {cart.length === 0 ? (
+              <div className="bill-empty">
+                <div>🛒</div>
+                <strong>No items added</strong>
+                <span>Select items from the menu to start a new bill.</span>
+              </div>
+            ) : (
+              cart.map((item) => (
+                <div className="bill-item" key={item.id}>
+                  <div className="bill-item-main">
+                    <div>
+                      <strong>{item.name}</strong>
+                      <span>{money(item.price)} each</span>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={!!invoiceNumber}
+                      onClick={() => removeItem(item.id)}
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  <div className="bill-item-bottom">
+                    <div className="qty-control">
+                      <button
+                        type="button"
+                        disabled={!!invoiceNumber}
+                        onClick={() => decreaseQuantity(item.id)}
+                      >
+                        −
+                      </button>
+                      <span>{item.quantity}</span>
+                      <button
+                        type="button"
+                        disabled={!!invoiceNumber}
+                        onClick={() => increaseQuantity(item.id)}
+                      >
+                        +
+                      </button>
+                    </div>
+                    <strong>{money(item.price * item.quantity)}</strong>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="bill-summary">
+            <div><span>Subtotal</span><strong>{money(subtotal)}</strong></div>
+            <div><span>Taxable Amount</span><strong>{money(taxableAmount)}</strong></div>
+            <div><span>CGST 2.5%</span><strong>{money(cgst)}</strong></div>
+            <div><span>SGST 2.5%</span><strong>{money(sgst)}</strong></div>
+
+            <div className="grand-total">
+              <div>
+                <strong>GRAND TOTAL</strong>
+                <span>Inclusive of taxes</span>
+              </div>
+              <b>{money(total)}</b>
+            </div>
+          </div>
+
+          {invoiceNumber ? (
+            <button
+              type="button"
+              className="settle-button new-bill-action"
+              onClick={startNewBill}
+            >
+              <span>🧾 Start New Bill</span>
+            </button>
+          ) : (
+            <>
+              <div className="bill-actions">
+                <button
+                  type="button"
+                  className="hold-action"
+                  disabled={saving || !cart.length}
+                  onClick={handleHold}
+                >
+                  ⏸ Hold Bill
+                </button>
+              </div>
+
+              <button
+                type="button"
+                className="settle-button"
+                disabled={saving || !cart.length}
+                onClick={openPaymentModal}
+              >
+                <span>Pay & Settle</span>
+                <strong>{money(total)}</strong>
+                <kbd>F9</kbd>
+              </button>
+
+              {draftId && (
+                <button
+                  type="button"
+                  className="cancel-link"
+                  onClick={() => setShowCancel(true)}
+                >
+                  Cancel Bill
+                </button>
+              )}
+            </>
+          )}
+        </aside>
+      </main>
+
+      {/* Payment modal */}
+      {showPayment && (
+        <div className="modal-overlay">
+          <div className="payment-modal">
+            <div className="modal-head">
+              <div>
+                <h2>Pay & Settle</h2>
+                <p>Complete current bill</p>
+              </div>
+              <button type="button" onClick={() => setShowPayment(false)}>×</button>
+            </div>
+
+            <div className="modal-total">
+              <span>TOTAL</span>
+              <strong>{money(total)}</strong>
+            </div>
+
+            <div className="modal-payment-tabs">
+              {[
+                ["CASH", "💵", "Cash"],
+                ["UPI", "📱", "UPI"],
+                ["SPLIT", "⇄", "Split"],
+              ].map(([value, icon, label]) => (
+                <button
+                  type="button"
+                  key={value}
+                  className={paymentMethod === value ? "active" : ""}
+                  onClick={() => selectPayment(value)}
+                >
+                  {icon}<strong>{label}</strong>
+                </button>
+              ))}
+            </div>
+
+            {paymentMethod === "CASH" && (
+              <div className="payment-input">
+                <label>Cash Amount</label>
+                <div>
+                  ₹
+                  <input
+                    autoFocus
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={cashAmount}
+                    onChange={(e) => setCashAmount(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+
+            {paymentMethod === "UPI" && (
+              <div className="payment-input">
+                <label>UPI Amount</label>
+                <div>
+                  ₹
+                  <input
+                    autoFocus
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={upiAmount}
+                    onChange={(e) => setUpiAmount(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+
+            {paymentMethod === "SPLIT" && (
+              <div className="split-inputs">
+                <div>
+                  <label>Cash</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={cashAmount}
+                    onChange={(e) => setCashAmount(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label>UPI</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={upiAmount}
+                    onChange={(e) => setUpiAmount(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="modal-actions">
+              <button type="button" onClick={() => setShowPayment(false)}>
+                Back
+              </button>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={handleComplete}
+              >
+                {saving ? "Processing..." : "Confirm & Complete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Held bills modal */}
+      {showHeldBills && (
+        <div className="modal-overlay">
+          <div className="held-modal">
+            <div className="modal-head">
+              <div>
+                <h2>Held Bills</h2>
+                <p>Resume pending bills</p>
+              </div>
+              <button type="button" onClick={() => setShowHeldBills(false)}>×</button>
+            </div>
+
+            <div className="held-list">
+              {heldBills.length === 0 ? (
+                <div className="held-empty">
+                  <div>⏸</div>
+                  <strong>No held bills</strong>
+                  <span>Held bills will appear here.</span>
+                </div>
+              ) : (
+                heldBills.map((bill) => {
+                  const items = bill?.items || bill?.orderItems || [];
+                  const quantity = items.reduce(
+                    (sum, item) => sum + Number(item?.quantity || 0),
+                    0
+                  );
+
+                  return (
+                    <div className="held-item" key={bill.id}>
+                      <div>
+                        <strong>{bill.holdNumber || "Held Bill"}</strong>
+                        <span>
+                          {bill.createdAt
+                            ? new Date(bill.createdAt).toLocaleString()
+                            : ""}
+                        </span>
+                      </div>
+
+                      <div>
+                        <span>{quantity} items</span>
+                        <strong>
+                          {money(bill.totalAmount || bill.subtotal || 0)}
+                        </strong>
+                      </div>
+
+                      <div className="held-actions">
+                        <button
+                          type="button"
+                          disabled={saving}
+                          onClick={() => resumeBill(bill)}
+                        >
+                          Resume
+                        </button>
+                        <button
+                          type="button"
+                          className="held-delete-btn"
+                          disabled={saving}
+                          onClick={() => deleteHeldBill(bill)}
+                          aria-label="Delete held bill"
+                        >
+                          🗑
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel modal */}
+      {showCancel && (
+        <div className="modal-overlay">
+          <div className="cancel-modal">
+            <div className="warning-icon">!</div>
+            <h2>Cancel Bill</h2>
+            <p>Enter cancellation reason.</p>
+
+            <textarea
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder="Cancellation reason..."
+            />
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCancel(false);
+                  setCancelReason("");
+                }}
+              >
+                Keep Bill
+              </button>
+              <button
+                type="button"
+                className="danger"
+                disabled={saving}
+                onClick={handleCancel}
+              >
+                {saving ? "Cancelling..." : "Cancel Bill"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default Billing;

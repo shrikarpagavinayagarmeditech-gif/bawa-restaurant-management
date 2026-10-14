@@ -1,0 +1,38 @@
+
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Environment secrets
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+
+# Frontend builds
+dist/
+**/dist/
+build/
+**/build/
+
+# Logs
+*.log
+npm-debug.log*
+logs/
+
+# Temporary files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Database backups
+*.sql
+*.sql.gz
+*.dump
+
+# Uploaded private files
+uploads/
+**/uploads/

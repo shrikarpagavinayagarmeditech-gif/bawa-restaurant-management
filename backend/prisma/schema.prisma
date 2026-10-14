@@ -1,0 +1,192 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model branch {
+  id              String           @id @default(cuid())
+  name            String
+  address         String
+  logo            String?
+  phone           String
+  gstNumber       String?
+  active          Boolean           @default(true)
+  createdAt       DateTime          @default(now())
+  branchfoodrate  BranchFoodRate[]
+  expense         expense[]
+  holdsequence    holdsequence[]
+  invoicesequence invoicesequence[]
+  order           order[]
+  user            user[]
+}
+
+model BranchFoodRate {
+  id         String   @id @default(cuid())
+  branchId   String
+  foodItemId String
+  rate       Decimal  @db.Decimal(10, 2)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  branch   branch   @relation(fields: [branchId], references: [id], onDelete: Cascade, map: "BranchFoodRate_branchId_fkey")
+  fooditem FoodItem @relation(fields: [foodItemId], references: [id], onDelete: Cascade, map: "BranchFoodRate_foodItemId_fkey")
+
+  @@unique([branchId, foodItemId], map: "BranchFoodRate_branchId_foodItemId_key")
+  @@index([foodItemId], map: "BranchFoodRate_foodItemId_idx")
+  @@map("branchfoodrate")
+}
+
+model category {
+  id        String     @id @default(cuid())
+  name      String     @unique(map: "Category_name_key")
+  active    Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  fooditem  FoodItem[]
+}
+
+model expense {
+  id        String   @id @default(cuid())
+  branchId  String
+  category  String
+  amount    Decimal  @db.Decimal(10, 2)
+  date      DateTime
+  createdAt DateTime @default(now())
+  branch    branch   @relation(fields: [branchId], references: [id], map: "Expense_branchId_fkey")
+
+  @@index([branchId], map: "Expense_branchId_idx")
+}
+
+model FoodItem {
+  id          String   @id @default(cuid())
+  image       String?
+  categoryId  String
+  name        String
+  rate        Decimal  @db.Decimal(10, 2)
+  description String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  branchFoodRates BranchFoodRate[]
+  category        category         @relation(fields: [categoryId], references: [id], map: "FoodItem_categoryId_fkey")
+  orderitem       orderitem[]
+
+  @@index([categoryId], map: "FoodItem_categoryId_idx")
+  @@map("fooditem")
+}
+
+model holdsequence {
+  id         String   @id @default(cuid())
+  branchId   String
+  year       Int
+  month      Int
+  lastNumber Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  branch     branch   @relation(fields: [branchId], references: [id], onDelete: Cascade, map: "HoldSequence_branchId_fkey")
+
+  @@unique([branchId, year, month], map: "HoldSequence_branchId_year_month_key")
+}
+
+model invoicesequence {
+  id         String   @id @default(cuid())
+  branchId   String
+  year       Int
+  month      Int
+  lastNumber Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  branch     branch   @relation(fields: [branchId], references: [id], onDelete: Cascade, map: "InvoiceSequence_branchId_fkey")
+
+  @@unique([branchId, year, month], map: "InvoiceSequence_branchId_year_month_key")
+}
+
+model order {
+  id                 String               @id @default(cuid())
+  branchId           String
+  shiftId            String?
+  status             order_status         @default(DRAFT)
+  holdNumber         String?
+  invoiceNumber      String?
+  paymentMethod      order_paymentMethod?
+  cashAmount         Decimal              @default(0.00) @db.Decimal(10, 2)
+  upiAmount          Decimal              @default(0.00) @db.Decimal(10, 2)
+  subtotal           Decimal              @db.Decimal(10, 2)
+  discountAmount     Decimal              @default(0.00) @db.Decimal(10, 2)
+  taxableAmount      Decimal              @db.Decimal(10, 2)
+  cgstAmount         Decimal              @default(0.00) @db.Decimal(10, 2)
+  sgstAmount         Decimal              @default(0.00) @db.Decimal(10, 2)
+  taxAmount          Decimal              @default(0.00) @db.Decimal(10, 2)
+  totalAmount        Decimal              @db.Decimal(10, 2)
+  cancellationReason String?
+  createdAt          DateTime             @default(now())
+  completedAt        DateTime?
+  cancelledAt        DateTime?
+  branch             branch               @relation(fields: [branchId], references: [id], map: "Order_branchId_fkey")
+  shift              shift?               @relation(fields: [shiftId], references: [id], map: "Order_shiftId_fkey")
+  orderitem          orderitem[]
+
+  @@index([branchId], map: "Order_branchId_idx")
+  @@index([createdAt], map: "Order_createdAt_idx")
+  @@index([holdNumber], map: "Order_holdNumber_idx")
+  @@index([invoiceNumber], map: "Order_invoiceNumber_idx")
+  @@index([shiftId], map: "Order_shiftId_idx")
+  @@index([status], map: "Order_status_idx")
+}
+
+model orderitem {
+  id         String   @id @default(cuid())
+  orderId    String
+  foodItemId String
+  quantity   Int
+  rate       Decimal  @db.Decimal(10, 2)
+  amount     Decimal  @db.Decimal(10, 2)
+  fooditem   FoodItem @relation(fields: [foodItemId], references: [id], map: "OrderItem_foodItemId_fkey")
+  order      order    @relation(fields: [orderId], references: [id], onDelete: Cascade, map: "OrderItem_orderId_fkey")
+
+  @@index([foodItemId], map: "OrderItem_foodItemId_idx")
+  @@index([orderId], map: "OrderItem_orderId_idx")
+}
+
+model shift {
+  id        String   @id @default(cuid())
+  name      String
+  startTime String
+  endTime   String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  order     order[]
+}
+
+model user {
+  id           String    @id @default(cuid())
+  username     String    @unique(map: "User_username_key")
+  passwordHash String
+  role         user_role
+  active       Boolean   @default(true)
+  branchId     String?
+  createdAt    DateTime  @default(now())
+  branch       branch?   @relation(fields: [branchId], references: [id], map: "User_branchId_fkey")
+
+  @@index([branchId], map: "User_branchId_idx")
+}
+
+enum order_status {
+  DRAFT
+  COMPLETED
+  CANCELLED
+}
+
+enum user_role {
+  ADMIN
+  BRANCH
+}
+
+enum order_paymentMethod {
+  CASH
+  UPI
+  SPLIT
+}

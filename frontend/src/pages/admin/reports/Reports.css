@@ -1,0 +1,324 @@
+.reports-page {
+  min-height: calc(100vh - 64px);
+  padding: 24px;
+  background: #f6f7fb;
+  box-sizing: border-box;
+}
+
+
+/* =====================================================
+   HEADER
+===================================================== */
+
+.reports-page-header {
+  margin-bottom: 22px;
+}
+
+.reports-page-header h1 {
+  margin: 0;
+  font-size: 27px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.reports-page-header p {
+  margin: 6px 0 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+
+/* =====================================================
+   FILTER
+===================================================== */
+
+.reports-filter-card {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  padding: 18px;
+  margin-bottom: 20px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  box-shadow: 0 3px 12px rgba(15, 23, 42, 0.04);
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.filter-group label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #4b5563;
+}
+
+.filter-group input {
+  height: 42px;
+  min-width: 180px;
+  padding: 0 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  outline: none;
+  font-size: 13px;
+  color: #111827;
+  background: #ffffff;
+  box-sizing: border-box;
+}
+
+.filter-group input:focus {
+  border-color: #8b1c1c;
+  box-shadow: 0 0 0 3px rgba(139, 28, 28, 0.08);
+}
+
+.filter-actions {
+  display: flex;
+  gap: 8px;
+}
+
+
+/* =====================================================
+   BUTTONS
+===================================================== */
+
+.report-primary-btn,
+.report-secondary-btn {
+  height: 42px;
+  padding: 0 18px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.report-primary-btn {
+  background: #8b1c1c;
+  color: #ffffff;
+}
+
+.report-primary-btn:hover {
+  background: #741717;
+}
+
+.report-primary-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.report-secondary-btn {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.report-secondary-btn:hover {
+  background: #e5e7eb;
+}
+
+
+/* =====================================================
+   ERROR
+===================================================== */
+
+.report-error {
+  padding: 13px 16px;
+  margin-bottom: 18px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  color: #b91c1c;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+
+/* =====================================================
+   SUMMARY
+===================================================== */
+
+.report-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.report-summary-card {
+  padding: 20px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  box-shadow: 0 3px 12px rgba(15, 23, 42, 0.04);
+}
+
+.report-summary-card span {
+  display: block;
+  margin-bottom: 8px;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.report-summary-card strong {
+  font-size: 25px;
+  font-weight: 800;
+  color: #111827;
+}
+
+
+/* =====================================================
+   TABLE CARD
+===================================================== */
+
+.report-table-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 3px 12px rgba(15, 23, 42, 0.04);
+}
+
+.report-table-header {
+  padding: 18px 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.report-table-header h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.report-table-header p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+
+/* =====================================================
+   TABLE
+===================================================== */
+
+.report-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.report-table {
+  width: 100%;
+  min-width: 650px;
+  border-collapse: collapse;
+}
+
+.report-table th {
+  padding: 13px 18px;
+  text-align: left;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  color: #6b7280;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.report-table td {
+  padding: 15px 18px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #374151;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.report-table tbody tr:hover {
+  background: #fafafa;
+}
+
+.report-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.food-name {
+  font-weight: 700 !important;
+  color: #111827 !important;
+}
+
+.quantity-cell {
+  font-weight: 700 !important;
+}
+
+.amount-cell {
+  font-weight: 800 !important;
+  color: #166534 !important;
+}
+
+
+/* =====================================================
+   EMPTY / LOADING
+===================================================== */
+
+.report-empty-cell,
+.report-loading-cell {
+  padding: 50px 20px !important;
+  text-align: center !important;
+  color: #9ca3af !important;
+  font-weight: 600 !important;
+}
+
+
+/* =====================================================
+   RESPONSIVE
+===================================================== */
+
+@media (max-width: 800px) {
+
+  .reports-filter-card {
+    flex-wrap: wrap;
+  }
+
+  .filter-actions {
+    width: 100%;
+  }
+
+  .report-summary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+@media (max-width: 500px) {
+
+  .reports-page {
+    padding: 14px;
+  }
+
+  .reports-page-header h1 {
+    font-size: 22px;
+  }
+
+  .reports-filter-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-group input {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .filter-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .report-primary-btn,
+  .report-secondary-btn {
+    width: 100%;
+  }
+}

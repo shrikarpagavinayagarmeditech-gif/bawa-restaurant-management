@@ -1,0 +1,315 @@
+* {
+    box-sizing: border-box
+}
+
+body {
+    margin: 0;
+    font-family: Inter, system-ui, Arial;
+    background: #f5f6f8;
+    color: #172033
+}
+
+.app {
+    display: flex;
+    min-height: 100vh
+}
+
+aside {
+    width: 230px;
+    background: #172033;
+    color: white;
+    padding: 24px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px
+}
+
+aside h2 {
+    margin: 0
+}
+
+aside small {
+    opacity: .7
+}
+
+nav {
+    display: flex;
+    flex-direction: column;
+    gap: 8px
+}
+
+nav a {
+    color: white;
+    text-decoration: none;
+    padding: 11px 12px;
+    border-radius: 8px
+}
+
+nav a:hover {
+    background: #2b3750
+}
+
+aside button {
+    margin-top: auto
+}
+
+main {
+    flex: 1
+}
+
+header {
+    height: 64px;
+    background: white;
+    border-bottom: 1px solid #e4e7ec;
+    padding: 22px 30px
+}
+
+main>h1,
+main>p,
+main>.cards,
+main>.grid2,
+main>.billing,
+main>.tabs,
+main>.panel {
+    margin-left: 30px;
+    margin-right: 30px
+}
+
+h1 {
+    margin-top: 28px
+}
+
+.cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px
+}
+
+.cards>div,
+.panel,
+.billbox {
+    background: white;
+    border: 1px solid #e4e7ec;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px #00000008
+}
+
+.cards span {
+    display: block;
+    color: #697386
+}
+
+.cards strong {
+    display: block;
+    font-size: 28px;
+    margin-top: 10px
+}
+
+.highlight {
+    border-left: 5px solid #172033 !important
+}
+
+.grid2 {
+    display: grid;
+    grid-template-columns: 1fr 1.5fr;
+    gap: 20px
+}
+
+.panel {
+    margin-top: 0
+}
+
+.panel form {
+    display: flex
+}
+
+.panel input,
+.panel select,
+.billbox select,
+.login input {
+    width: 100%;
+    padding: 11px;
+    margin: 7px 0;
+    border: 1px solid #ccd2dc;
+    border-radius: 8px;
+    background: white
+}
+
+.panel button,
+.billbox button,
+.login button,
+aside button {
+    padding: 11px 16px;
+    border: 0;
+    border-radius: 8px;
+    background: #172033;
+    color: white;
+    cursor: pointer
+}
+
+.row {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 1fr;
+    padding: 13px 0;
+    border-bottom: 1px solid #edf0f3;
+    gap: 10px
+}
+
+.billing {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px
+}
+
+.menu {
+    display: grid;
+    gap: 10px
+}
+
+.food {
+    background: white;
+    border: 1px solid #e4e7ec;
+    border-radius: 10px;
+    padding: 15px;
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 20px;
+    align-items: center
+}
+
+.food small {
+    display: block;
+    color: #697386
+}
+
+.qty {
+    display: flex;
+    gap: 10px;
+    align-items: center
+}
+
+.qty button {
+    border: 1px solid #ccd2dc;
+    background: white;
+    border-radius: 6px
+}
+
+.billbox {
+    height: max-content
+}
+
+.tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 15px
+}
+
+.tabs button {
+    padding: 9px 12px;
+    border: 1px solid #ccd2dc;
+    background: white;
+    border-radius: 8px
+}
+
+.tabs .active {
+    background: #172033;
+    color: white
+}
+
+.login {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    background: #f5f6f8
+}
+
+.login form {
+    background: white;
+    padding: 35px;
+    width: min(420px, 92vw);
+    border: 1px solid #e4e7ec;
+    border-radius: 14px
+}
+
+.login h1 {
+    margin-top: 0
+}
+
+.error {
+    background: #fff0f0;
+    color: #a51d2d;
+    padding: 10px;
+    border-radius: 7px;
+    margin-bottom: 10px
+}
+
+.note {
+    color: #697386
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse
+}
+
+th,
+td {
+    text-align: left;
+    padding: 11px;
+    border-bottom: 1px solid #edf0f3
+}
+
+@media(max-width:800px) {
+    .app {
+        display: block
+    }
+
+    aside {
+        width: 100%;
+        position: relative
+    }
+
+    nav {
+        flex-direction: row;
+        overflow: auto
+    }
+
+    aside button {
+        margin-top: 0
+    }
+
+    .cards,
+    .grid2,
+    .billing {
+        grid-template-columns: 1fr
+    }
+
+    main>h1,
+    main>p,
+    main>.cards,
+    main>.grid2,
+    main>.billing,
+    main>.tabs,
+    main>.panel {
+        margin-left: 15px;
+        margin-right: 15px
+    }
+
+    .food {
+        grid-template-columns: 1fr auto
+    }
+
+    .food .qty {
+        grid-column: 1/-1
+    }
+
+    .row {
+        grid-template-columns: 1fr 1fr
+    }
+
+    .row span:last-child {
+        grid-column: 2
+    }
+}
