@@ -40,7 +40,11 @@ app.use(
 
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: [
+      "http://localhost:5173",
+      "https://bawa.quiltoaiapps.com"
+    ],
+    credentials: true
   })
 );
 
@@ -126,5 +130,31 @@ app.use(
   "/api/admin/reports",
   adminReportRoutes
 );
+
+
+/* =========================
+   React Production Frontend
+========================= */
+
+const frontendPath = path.join(
+  __dirname,
+  "../public"
+);
+
+if (process.env.NODE_ENV === "production") {
+  app.use(express.static(frontendPath));
+
+  // React Router fallback (Express 5)
+  app.get("/{*path}", (req, res, next) => {
+    if (req.path.startsWith("/api/")) {
+      return next();
+    }
+
+    res.sendFile(
+      path.join(frontendPath, "index.html")
+    );
+  });
+}
+
 
 export default app;
