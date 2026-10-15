@@ -289,6 +289,8 @@ export async function holdBill(req, res) {
 /**
  * GET HOLD / DRAFT BILLS
  */
+
+
 export async function getHeldBills(req, res) {
   try {
     const branchId = req.user.branchId;
@@ -301,16 +303,14 @@ export async function getHeldBills(req, res) {
           not: null,
         },
       },
-
       include: {
-        items: {
+        orderitem: {
           include: {
-            foodItem: true,
+            fooditem: true,
           },
         },
         shift: true,
       },
-
       orderBy: {
         createdAt: "desc",
       },
@@ -330,6 +330,8 @@ export async function getHeldBills(req, res) {
     });
   }
 }
+
+
 
 /**
  * GET SINGLE DRAFT BILL

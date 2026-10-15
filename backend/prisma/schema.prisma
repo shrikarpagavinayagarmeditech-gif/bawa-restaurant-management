@@ -8,7 +8,7 @@ datasource db {
 }
 
 model branch {
-  id              String           @id @default(cuid())
+  id              String            @id @default(cuid())
   name            String
   address         String
   logo            String?
@@ -31,9 +31,8 @@ model BranchFoodRate {
   rate       Decimal  @db.Decimal(10, 2)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-
-  branch   branch   @relation(fields: [branchId], references: [id], onDelete: Cascade, map: "BranchFoodRate_branchId_fkey")
-  fooditem FoodItem @relation(fields: [foodItemId], references: [id], onDelete: Cascade, map: "BranchFoodRate_foodItemId_fkey")
+  branch     branch   @relation(fields: [branchId], references: [id], onDelete: Cascade, map: "BranchFoodRate_branchId_fkey")
+  fooditem   FoodItem @relation(fields: [foodItemId], references: [id], onDelete: Cascade, map: "BranchFoodRate_foodItemId_fkey")
 
   @@unique([branchId, foodItemId], map: "BranchFoodRate_branchId_foodItemId_key")
   @@index([foodItemId], map: "BranchFoodRate_foodItemId_idx")
@@ -61,15 +60,14 @@ model expense {
 }
 
 model FoodItem {
-  id          String   @id @default(cuid())
-  image       String?
-  categoryId  String
-  name        String
-  rate        Decimal  @db.Decimal(10, 2)
-  description String?
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now())
-
+  id              String           @id @default(cuid())
+  image           String?
+  categoryId      String
+  name            String
+  rate            Decimal          @db.Decimal(10, 2)
+  description     String?
+  active          Boolean          @default(true)
+  createdAt       DateTime         @default(now())
   branchFoodRates BranchFoodRate[]
   category        category         @relation(fields: [categoryId], references: [id], map: "FoodItem_categoryId_fkey")
   orderitem       orderitem[]

@@ -10,10 +10,16 @@
 // });
 
 
-import dotenv from "dotenv";
+import "dotenv/config";
 import app from "./app.js";
 
-dotenv.config();
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL is missing");
+}
+
+if (!process.env.JWT_SECRET) {
+  throw new Error("JWT_SECRET is missing");
+}
 
 const PORT = process.env.PORT || 5000;
 
