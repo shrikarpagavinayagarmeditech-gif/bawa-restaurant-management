@@ -815,181 +815,134 @@ export const getOrderById = async (
 // GET ALL BRANCH ORDERS
 // ============================================================
 
-export const getOrders = async (
-  req,
-  res
-) => {
+
+export const getOrders = async (req, res) => {
   try {
     const branchId = req.user.branchId;
 
     if (!branchId) {
       return res.status(403).json({
         success: false,
-        message:
-          "Branch is not assigned to this user",
+        message: "Branch is not assigned to this user",
       });
     }
 
-    const {
-      status,
-      from,
-      to,
-      invoiceNumber,
-      holdNumber,
-    } = req.query;
+    const { status, from, to, invoiceNumber, holdNumber } =
+      req.query;
 
-    const where = {
-      branchId,
-    };
+    const where = { branchId };
 
-    // Status
     if (status) {
       where.status = status;
     }
 
-    // Invoice search
     if (invoiceNumber) {
       where.invoiceNumber = {
         contains: invoiceNumber,
       };
     }
 
-    // Hold search
     if (holdNumber) {
       where.holdNumber = {
         contains: holdNumber,
       };
     }
 
-    // Date filter
     if (from || to) {
       where.createdAt = {};
 
       if (from) {
-        where.createdAt.gte =
-          new Date(
-            `${from}T00:00:00`
-          );
+        const startDate = new Date(`${from}T00:00:00`);
+        if (Number.isNaN(startDate.getTime())) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid from date",
+          });
+        }
+        where.createdAt.gte = startDate;
       }
 
       if (to) {
-        const endDate =
-          new Date(
-            `${to}T00:00:00`
-          );
-
-        endDate.setDate(
-          endDate.getDate() + 1
-        );
-
-        where.createdAt.lt =
-          endDate;
+        const endDate = new Date(`${to}T00:00:00`);
+        if (Number.isNaN(endDate.getTime())) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid to date",
+          });
+        }
+        endDate.setDate(endDate.getDate() + 1);
+        where.createdAt.lt = endDate;
       }
     }
 
-    const orders =
-      await prisma.order.findMany({
-        where,
-
-        include: {
-          branch: true,
-
-          shift: true,
-
-          items: {
-            include: {
-              foodItem: {
-                include: {
-                  category: true,
-                },
+    const orders = await prisma.order.findMany({
+      where,
+      include: {
+        branch: true,
+        shift: true,
+        orderitem: {
+          include: {
+            fooditem: {
+              include: {
+                category: true,
               },
             },
           },
         },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
 
-        orderBy: {
-          createdAt: "desc",
-        },
-      });
+    const data = orders.map((order) => {
+      const { orderitem, ...orderData } = order;
 
-    const totalAmount =
-      orders.reduce(
-        (sum, order) =>
-          sum +
-          Number(order.totalAmount),
-        0
-      );
+      return {
+        ...orderData,
+        subtotal: Number(order.subtotal),
+        discountAmount: Number(order.discountAmount),
+        taxableAmount: Number(order.taxableAmount),
+        cgstAmount: Number(order.cgstAmount),
+        sgstAmount: Number(order.sgstAmount),
+        taxAmount: Number(order.taxAmount),
+        totalAmount: Number(order.totalAmount),
+        cashAmount: Number(order.cashAmount),
+        upiAmount: Number(order.upiAmount),
+        items: orderitem.map((item) => {
+          const { fooditem, ...itemData } = item;
+
+          return {
+            ...itemData,
+            foodItem: fooditem,
+            rate: Number(item.rate),
+            amount: Number(item.amount),
+          };
+        }),
+      };
+    });
+
+    const totalAmount = data.reduce(
+      (sum, order) => sum + order.totalAmount,
+      0
+    );
 
     return res.status(200).json({
       success: true,
-
-      count: orders.length,
-
+      count: data.length,
       totalAmount,
-
-      data: orders.map(
-        (order) => ({
-          ...order,
-
-          subtotal:
-            Number(order.subtotal),
-
-          discountAmount:
-            Number(
-              order.discountAmount
-            ),
-
-          taxableAmount:
-            Number(
-              order.taxableAmount
-            ),
-
-          cgstAmount:
-            Number(order.cgstAmount),
-
-          sgstAmount:
-            Number(order.sgstAmount),
-
-          taxAmount:
-            Number(order.taxAmount),
-
-          totalAmount:
-            Number(order.totalAmount),
-
-          cashAmount:
-            Number(order.cashAmount),
-
-          upiAmount:
-            Number(order.upiAmount),
-
-          items:
-            order.items.map(
-              (item) => ({
-                ...item,
-
-                rate:
-                  Number(item.rate),
-
-                amount:
-                  Number(item.amount),
-              })
-            ),
-        })
-      ),
+      data,
     });
   } catch (error) {
-    console.error(
-      "Get branch orders error:",
-      error
-    );
+    console.error("Get branch orders error:", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Failed to fetch orders",
+      message: "Failed to fetch orders",
     });
   }
 };
+
 
 // ============================================================
 // UPDATE DRAFT
