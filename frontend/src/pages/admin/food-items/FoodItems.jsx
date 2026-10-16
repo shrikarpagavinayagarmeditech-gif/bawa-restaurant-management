@@ -786,7 +786,9 @@ function FoodItems() {
 
         // Backend image path
 
-        return `http://localhost:5000${image}`;
+       return image.startsWith("/")
+  ? image
+  : `/${image}`;
 
     };
 
