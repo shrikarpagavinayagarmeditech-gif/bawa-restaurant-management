@@ -58,7 +58,7 @@ const getFoodImage = (item) => {
   if (!image) return null;
   if (/^(https?:\/\/|data:)/i.test(image)) return image;
 
-  return `http://localhost:5000${image.startsWith("/") ? "" : "/"}${image}`;
+  return `http://bawa.quiltoaiapps.com${image.startsWith("/") ? "" : "/"}${image}`;
 };
 
 const getFoodCategory = (item) =>
