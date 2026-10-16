@@ -766,29 +766,31 @@ function FoodItems() {
     // =========================================
 
     const getImageUrl = (image) => {
+    if (!image) return null;
 
-        if (!image) {
-            return null;
-        }
+    const serverUrl = "https://bawa.quiltoaiapps.com";
 
+    // Handle full URLs, including old localhost URLs
+    if (/^https?:\/\//i.test(image)) {
+        try {
+            const url = new URL(image);
 
-        // Already full URL
-
-        if (
-            image.startsWith("http://") ||
-            image.startsWith("https://")
-        ) {
+            if (
+                url.hostname === "localhost" ||
+                url.hostname === "127.0.0.1"
+            ) {
+                return `${serverUrl}${url.pathname}${url.search}`;
+            }
 
             return image;
-
+        } catch {
+            return image;
         }
+    }
 
-
-        // Backend image path
-
-        return `https://bawa.quiltoaiapps.com${image}`;
-
-    };
+    // Handle relative paths
+    return `${serverUrl}/${image.replace(/^\/+/, "")}`;
+};
 
 
     // =========================================
