@@ -351,7 +351,7 @@ export async function getDraftBill(req, res) {
       },
 
       include: {
-        items: {
+        orderitem: {
           include: {
             foodItem: true,
           },
@@ -421,7 +421,7 @@ export async function updateDraftBill(req, res) {
 
     const updatedOrder = await prisma.$transaction(
       async (tx) => {
-        await tx.orderItem.deleteMany({
+       await tx.orderitem.deleteMany({
           where: {
             orderId: id,
           },
@@ -443,7 +443,7 @@ export async function updateDraftBill(req, res) {
 
             totalAmount: amounts.totalAmount,
 
-            items: {
+            orderitem: {
               create: preparedItems.map((item) => ({
                 foodItemId: item.foodItemId,
                 quantity: item.quantity,
@@ -454,7 +454,7 @@ export async function updateDraftBill(req, res) {
           },
 
           include: {
-            items: true,
+            orderitem: true,
           },
         });
       }
@@ -542,7 +542,7 @@ export async function completeBill(req, res) {
           },
 
           include: {
-            items: {
+            orderitem: {
               include: {
                 foodItem: true,
               },
