@@ -95,6 +95,7 @@ export const getOrders = async (req, res) => {
 // ============================================
 // GET ORDER DETAILS - ADMIN
 // ============================================
+
 export const getOrderById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -104,9 +105,9 @@ export const getOrderById = async (req, res) => {
       include: {
         branch: true,
         shift: true,
-        items: {
+        orderitem: {
           include: {
-            foodItem: {
+            fooditem: {
               include: {
                 category: true,
               },
