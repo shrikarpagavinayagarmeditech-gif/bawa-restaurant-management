@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+
 export const setBranchFoodRate = async (req, res) => {
   try {
     const { branchId, foodItemId, rate } = req.body;
@@ -23,9 +24,7 @@ export const setBranchFoodRate = async (req, res) => {
     }
 
     const branch = await prisma.branch.findUnique({
-      where: {
-        id: branchId,
-      },
+      where: { id: branchId },
     });
 
     if (!branch) {
@@ -36,9 +35,7 @@ export const setBranchFoodRate = async (req, res) => {
     }
 
     const foodItem = await prisma.foodItem.findUnique({
-      where: {
-        id: foodItemId,
-      },
+      where: { id: foodItemId },
     });
 
     if (!foodItem) {
@@ -65,7 +62,7 @@ export const setBranchFoodRate = async (req, res) => {
       },
       include: {
         branch: true,
-        foodItem: {
+        fooditem: {
           include: {
             category: true,
           },
@@ -87,6 +84,7 @@ export const setBranchFoodRate = async (req, res) => {
     });
   }
 };
+
 
 export const getBranchFoodRates = async (req, res) => {
   try {
