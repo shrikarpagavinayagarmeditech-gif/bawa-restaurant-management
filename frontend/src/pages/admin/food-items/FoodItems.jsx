@@ -786,9 +786,7 @@ function FoodItems() {
 
         // Backend image path
 
-       return image.startsWith("/")
-  ? image
-  : `/${image}`;
+        return `https://bawa.quiltoaiapps.com${image}`;
 
     };
 
