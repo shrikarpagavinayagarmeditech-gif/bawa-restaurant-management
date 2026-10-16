@@ -17,7 +17,7 @@ export async function generateInvoiceNumber(tx, branchId, date = new Date()) {
 
   const yearCode = String(year).slice(-2);
 
-  const sequence = await tx.invoiceSequence.upsert({
+  const sequence = await tx.invoicesequence.upsert({
     where: {
       branchId_year_month: {
         branchId,
