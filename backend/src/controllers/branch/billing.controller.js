@@ -498,7 +498,7 @@ export async function completeBill(req, res) {
         status: "DRAFT",
       },
       include: {
-        items: true,
+         orderitem: true,
       },
     });
 
