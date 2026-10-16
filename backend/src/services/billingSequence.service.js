@@ -51,11 +51,12 @@ export async function generateInvoiceNumber(tx, branchId, date = new Date()) {
  * H-002
  * H-003
  */
+
 export async function generateHoldNumber(tx, branchId, date = new Date()) {
   const year = date.getFullYear();
   const month = date.getMonth() + 1;
 
-  const sequence = await tx.holdSequence.upsert({
+  const sequence = await tx.holdsequence.upsert({
     where: {
       branchId_year_month: {
         branchId,
