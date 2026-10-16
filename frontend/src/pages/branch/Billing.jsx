@@ -47,6 +47,7 @@ const getFoodPrice = (item) =>
       0
   );
 
+
 const getFoodImage = (item) => {
   const image =
     item?.imageUrl ||
@@ -56,10 +57,27 @@ const getFoodImage = (item) => {
     null;
 
   if (!image) return null;
-  if (/^(https?:\/\/|data:)/i.test(image)) return image;
 
-  return `http://bawa.quiltoaiapps.com${image.startsWith("/") ? "" : "/"}${image}`;
+  if (/^data:/i.test(image)) return image;
+
+  try {
+    const url = new URL(image, window.location.origin);
+
+    if (
+      ["localhost", "127.0.0.1"].includes(url.hostname) ||
+      url.hostname === window.location.hostname
+    ) {
+      return `${url.pathname}${url.search}${url.hash}`;
+    }
+
+    if (/^https?:\/\//i.test(image)) return image;
+
+    return image.startsWith("/") ? image : `/${image}`;
+  } catch {
+    return image.startsWith("/") ? image : `/${image}`;
+  }
 };
+
 
 const getFoodCategory = (item) =>
   item?.category || item?.foodItem?.category || null;
