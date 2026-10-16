@@ -194,6 +194,7 @@ async function prepareOrderItems(branchId, items) {
  *
  * Invoice number is NOT generated here.
  */
+
 export async function holdBill(req, res) {
   try {
     const branchId = req.user.branchId;
@@ -232,28 +233,23 @@ export async function holdBill(req, res) {
         data: {
           branchId,
           shiftId: shift?.id || null,
-
           status: "DRAFT",
-
           holdNumber,
           invoiceNumber: null,
-
           paymentMethod: null,
-
           cashAmount: 0,
           upiAmount: 0,
 
           subtotal: amounts.subtotal,
           discountAmount: amounts.discountAmount,
           taxableAmount: amounts.taxableAmount,
-
           cgstAmount: amounts.cgstAmount,
           sgstAmount: amounts.sgstAmount,
           taxAmount: amounts.taxAmount,
-
           totalAmount: amounts.totalAmount,
 
-          items: {
+          // Correct relation name from schema.prisma
+          orderitem: {
             create: preparedItems.map((item) => ({
               foodItemId: item.foodItemId,
               quantity: item.quantity,
@@ -262,13 +258,18 @@ export async function holdBill(req, res) {
             })),
           },
         },
-
         include: {
-          items: true,
+          orderitem: true,
         },
       });
 
-      return order;
+      // Preserve the "items" property expected by the frontend.
+      const { orderitem, ...orderData } = order;
+
+      return {
+        ...orderData,
+        items: orderitem,
+      };
     });
 
     return res.status(201).json({
@@ -285,6 +286,7 @@ export async function holdBill(req, res) {
     });
   }
 }
+
 
 /**
  * GET HOLD / DRAFT BILLS
