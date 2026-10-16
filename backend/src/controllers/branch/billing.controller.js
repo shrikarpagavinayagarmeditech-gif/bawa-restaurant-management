@@ -544,7 +544,7 @@ export async function completeBill(req, res) {
           include: {
             orderitem: {
               include: {
-                foodItem: true,
+                fooditem: true,
               },
             },
             branch: true,
