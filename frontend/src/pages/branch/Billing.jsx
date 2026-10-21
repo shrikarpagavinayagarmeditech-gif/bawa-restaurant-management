@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import qz from "qz-tray";
 import api from "../../api/api.js";
 
 import {
@@ -14,7 +15,24 @@ import {
 import ReceiptPrint from "./ReceiptPrint.jsx";
 import "./Billing.css";
 
+const LOGO_SRC = "/images/bawa-logo.png";
+
+// Leave empty to use the Windows default printer,
+// or set the exact printer name, e.g. "POS-80".
+const PRINTER_NAME = "";
+
+// Receipt paper width in mm (80mm paper -> 72, 58mm paper -> 48)
+const PAPER_WIDTH_MM = 72;
+
 const money = (value) => `₹${Number(value || 0).toFixed(2)}`;
+const rs = (value) => `Rs. ${Number(value || 0).toFixed(2)}`;
+
+const escapeHtml = (value) =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 
 const getMenuArray = (response) => {
   const root = response?.data;
@@ -47,7 +65,6 @@ const getFoodPrice = (item) =>
       0
   );
 
-
 const getFoodImage = (item) => {
   const image =
     item?.imageUrl ||
@@ -77,7 +94,6 @@ const getFoodImage = (item) => {
     return image.startsWith("/") ? image : `/${image}`;
   }
 };
-
 
 const getFoodCategory = (item) =>
   item?.category || item?.foodItem?.category || null;
@@ -117,7 +133,8 @@ const getFoodType = (item) => {
     normalized === "true" ||
     normalized === "veg" ||
     normalized === "vegetarian"
-  ) return "VEG";
+  )
+    return "VEG";
 
   if (
     value === false ||
@@ -126,14 +143,13 @@ const getFoodType = (item) => {
     normalized === "non-veg" ||
     normalized === "nonveg" ||
     normalized === "non_veg"
-  ) return "NON_VEG";
+  )
+    return "NON_VEG";
 
   return "UNKNOWN";
 };
 
 // Branch details printed at the top of the receipt (below the logo).
-// If the address is blank on the receipt, check where the branch address
-// lives in your logged-in user object (console.log(user)) and adjust here.
 const getBranchInfo = (user) => {
   const b = user?.branch || {};
 
@@ -152,85 +168,122 @@ const getBranchInfo = (user) => {
   };
 };
 
-// Android Bluetooth thermal printing through Cleanter. Install and configure
-// Cleanter on the same Android tablet as this React billing app.
-const buildThermalReceiptContent = (receipt) => {
+// Convert the logo to a base64 data URI (QZ Tray cannot load relative URLs)
+const loadLogoAsDataUri = async () => {
+  try {
+    const res = await fetch(LOGO_SRC);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+};
+
+// Self-contained receipt HTML with inline styles (for QZ Tray)
+const buildReceiptHtml = (receipt, logoDataUri) => {
   const branch = receipt.branch || {};
   const items = Array.isArray(receipt.items) ? receipt.items : [];
-  const amount = (value) => Number(value || 0).toFixed(2);
 
-  return [
-    { type: "text", text: branch.name || "BAWA RESTAURANT", align: "center", bold: true, size: "large" },
-    ...(branch.address ? [{ type: "text", text: branch.address, align: "center" }] : []),
-    ...(branch.phone ? [{ type: "text", text: `Ph: ${branch.phone}`, align: "center" }] : []),
-    ...(branch.gstin ? [{ type: "text", text: `GSTIN: ${branch.gstin}`, align: "center" }] : []),
-    { type: "divider" },
-    { type: "text", text: "PAYMENT RECEIPT", align: "center", bold: true },
-    { type: "text", text: `Invoice: ${receipt.invoiceNumber || ""}` },
-    { type: "text", text: `Date: ${receipt.date || ""}` },
-    { type: "text", text: `Service: ${String(receipt.serviceMode || "").replace(/_/g, " ")}` },
-    { type: "text", text: `Cashier: ${receipt.cashier || "Branch User"}` },
-    { type: "divider" },
-    { type: "row", left: "ITEM / QTY", right: "AMOUNT", bold: true },
-    ...items.map((item) => ({
-      type: "row",
-      left: `${item.name || "Food Item"} x ${Number(item.quantity || 0)}`,
-      right: amount(Number(item.price || 0) * Number(item.quantity || 0)),
-    })),
-    { type: "divider" },
-    { type: "row", left: "Subtotal", right: amount(receipt.subtotal) },
-    ...(Number(receipt.discountAmount || 0) > 0 ? [{ type: "row", left: "Discount", right: `-${amount(receipt.discountAmount)}` }] : []),
-    { type: "row", left: "Taxable Amount", right: amount(receipt.taxableAmount) },
-    { type: "row", left: "CGST (2.5%)", right: amount(receipt.cgst) },
-    { type: "row", left: "SGST (2.5%)", right: amount(receipt.sgst) },
-    { type: "divider" },
-    { type: "row", left: "GRAND TOTAL", right: amount(receipt.total), bold: true },
-    { type: "divider" },
-    { type: "text", text: `Payment Method: ${receipt.paymentMethod || "CASH"}` },
-    ...(Number(receipt.cashAmount || 0) > 0 ? [{ type: "text", text: `Cash: ${amount(receipt.cashAmount)}` }] : []),
-    ...(Number(receipt.upiAmount || 0) > 0 ? [{ type: "text", text: `UPI: ${amount(receipt.upiAmount)}` }] : []),
-    { type: "divider" },
-    { type: "text", text: "Thank you!", align: "center", bold: true },
-    { type: "text", text: "Visit Again", align: "center" },
-    { type: "feed", lines: 3 },
-  ];
-};
+  const row = (left, right, bold = false) => `
+    <div style="display:flex;justify-content:space-between;${
+      bold ? "font-weight:bold;font-size:14px;" : ""
+    }">
+      <span>${left}</span><span>${right}</span>
+    </div>`;
 
-const printThermalReceipt = async (receipt) => {
-  // Make this the first bridge request from the cashier's button flow so
-  // Chrome can request local-device permission if the tablet needs it.
-  const response = await fetch("http://localhost:9100/print", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ cut: true, content: buildThermalReceiptContent(receipt) }),
-  });
-  const result = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(result.fix || result.message || result.error || `Printer request failed (${response.status}). Check Cleanter and Bluetooth.`);
+  const hr = `<hr style="border:0;border-top:1px dashed #000;margin:6px 0;" />`;
+
+  const itemRows = items
+    .map(
+      (item) => `
+      <tr>
+        <td style="padding:2px 0;word-break:break-word;">${escapeHtml(item.name)}</td>
+        <td style="padding:2px 0;text-align:center;">${item.quantity}</td>
+        <td style="padding:2px 0;text-align:right;">${rs(item.price * item.quantity)}</td>
+      </tr>`
+    )
+    .join("");
+
+  let paymentLines = "";
+  if (receipt.paymentMethod === "CASH") {
+    paymentLines = `<div>Cash: ${rs(receipt.cashAmount)}</div>`;
+  } else if (receipt.paymentMethod === "UPI") {
+    paymentLines = `<div>UPI: ${rs(receipt.upiAmount)}</div>`;
+  } else if (receipt.paymentMethod === "SPLIT") {
+    paymentLines = `<div>Cash: ${rs(receipt.cashAmount)}</div><div>UPI: ${rs(
+      receipt.upiAmount
+    )}</div>`;
   }
-  return result;
-};
 
-const testThermalPrinter = async () => {
-  const response = await fetch("http://localhost:9100/print", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      cut: true,
-      content: [
-        { type: "text", text: "BAWA RESTAURANT", align: "center", bold: true, size: "large" },
-        { type: "divider" },
-        { type: "text", text: "PRINTER TEST", align: "center", bold: true },
-        { type: "text", text: "Bluetooth printer is ready.", align: "center" },
-        { type: "feed", lines: 3 },
-      ],
-    }),
-  });
-  const result = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(result.fix || result.message || result.error || `Printer test failed (${response.status}).`);
-  }
-  return result;
+  return `
+<html>
+  <head><meta charset="utf-8" /></head>
+  <body style="margin:0;padding:0;">
+    <div style="width:${PAPER_WIDTH_MM}mm;font-family:'Courier New',monospace;font-size:12px;color:#000;padding:2mm;box-sizing:border-box;">
+
+      <div style="text-align:center;">
+        ${
+          logoDataUri
+            ? `<img src="${logoDataUri}" style="width:40mm;max-width:100%;display:block;margin:0 auto 4px;" />`
+            : ""
+        }
+        <div style="font-size:15px;font-weight:bold;">${escapeHtml(
+          branch.name || "BAWA RESTAURANT"
+        )}</div>
+        ${branch.address ? `<div>${escapeHtml(branch.address)}</div>` : ""}
+        ${branch.phone ? `<div>Ph: ${escapeHtml(branch.phone)}</div>` : ""}
+        ${branch.gstin ? `<div>GSTIN: ${escapeHtml(branch.gstin)}</div>` : ""}
+      </div>
+
+      <div style="text-align:center;font-weight:bold;margin-top:6px;">PAYMENT RECEIPT</div>
+      ${hr}
+
+      <div>Invoice: ${escapeHtml(receipt.invoiceNumber)}</div>
+      <div>Date: ${escapeHtml(receipt.date)}</div>
+      <div>Service: ${escapeHtml(String(receipt.serviceMode || "").replaceAll("_", " "))}</div>
+      <div>Cashier: ${escapeHtml(receipt.cashier)}</div>
+      ${hr}
+
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead>
+          <tr>
+            <th style="text-align:left;">Item</th>
+            <th style="text-align:center;">Qty</th>
+            <th style="text-align:right;">Amount</th>
+          </tr>
+        </thead>
+        <tbody>${itemRows}</tbody>
+      </table>
+      ${hr}
+
+      ${row("Subtotal", rs(receipt.subtotal))}
+      ${
+        receipt.discountAmount > 0
+          ? row("Discount", `-${rs(receipt.discountAmount)}`)
+          : ""
+      }
+      ${row("Taxable Amount", rs(receipt.taxableAmount))}
+      ${row("CGST (2.5%)", rs(receipt.cgst))}
+      ${row("SGST (2.5%)", rs(receipt.sgst))}
+      ${hr}
+      ${row("GRAND TOTAL", rs(receipt.total), true)}
+      ${hr}
+
+      <div>Payment Method: ${escapeHtml(receipt.paymentMethod)}</div>
+      ${paymentLines}
+      ${hr}
+
+      <div style="text-align:center;">Thank you!</div>
+      <div style="text-align:center;">Visit Again</div>
+    </div>
+  </body>
+</html>`;
 };
 
 function Billing() {
@@ -275,27 +328,83 @@ function Billing() {
   const [holdNumber, setHoldNumber] = useState(null);
   const [invoiceNumber, setInvoiceNumber] = useState(null);
 
-  // Receipt data retained for the existing ReceiptPrint component.
-  // Actual printing is handled by the Android Bluetooth bridge.
+  // Printing
   const [printPayload, setPrintPayload] = useState(null);
+  const printedInvoiceRef = useRef(null);
+  const logoDataUriRef = useRef(null);
 
   const user = useMemo(() => getUserFromStorage(), []);
 
-  // Use this button once on the tablet to test the paired printer and
-  // grant Chrome local-device access if a permission prompt appears.
-  const handleTestPrinter = async () => {
+  // Preload the logo (as base64) so it is ready before printing.
+  useEffect(() => {
+    const img = new Image();
+    img.src = LOGO_SRC;
+
+    loadLogoAsDataUri().then((uri) => {
+      logoDataUriRef.current = uri;
+    });
+  }, []);
+
+  // Direct print through QZ Tray; falls back to the browser print dialog.
+  const printReceipt = async (receipt) => {
     try {
-      await testThermalPrinter();
-      alert("Printer test sent successfully. Check the thermal printer.");
+      if (!qz.websocket.isActive()) {
+        await qz.websocket.connect();
+      }
+
+      const printerName = PRINTER_NAME || (await qz.printers.getDefault());
+
+      const config = qz.configs.create(printerName, {
+        units: "mm",
+        size: { width: PAPER_WIDTH_MM },
+        margins: 0,
+        scaleContent: true,
+        colorType: "blackwhite",
+      });
+
+      const html = buildReceiptHtml(receipt, logoDataUriRef.current);
+
+      await qz.print(config, [
+        {
+          type: "pixel",
+          format: "html",
+          flavor: "plain",
+          data: html,
+        },
+      ]);
     } catch (error) {
-      console.error("Printer test error:", error);
-      alert(
-        `Printer test failed: ${error.message}\n\n` +
-        "Open Cleanter on this Android tablet, select the paired Bluetooth printer, " +
-        "and allow the browser's device-access permission if prompted."
-      );
+      console.error("QZ Tray print failed, using browser print:", error);
+      window.print();
     }
   };
+
+  // Print only after a successful completion and a known invoice number.
+  useEffect(() => {
+    if (!printPayload?.invoiceNumber) return;
+
+    const invoiceKey = String(printPayload.invoiceNumber);
+
+    if (printedInvoiceRef.current === invoiceKey) return;
+
+    const timer = window.setTimeout(() => {
+      // Prevent a duplicate print trigger for this invoice in this page.
+      printedInvoiceRef.current = invoiceKey;
+      printReceipt(printPayload);
+    }, 500);
+
+    return () => window.clearTimeout(timer);
+  }, [printPayload]);
+
+  // Disconnect QZ when leaving the page
+  useEffect(() => {
+    return () => {
+      try {
+        if (qz.websocket.isActive()) qz.websocket.disconnect();
+      } catch {
+        /* ignore */
+      }
+    };
+  }, []);
 
   // Load menu
   const loadMenu = async () => {
@@ -346,7 +455,7 @@ function Billing() {
     }
   };
 
-  // Initial loading and keyboard shortcuts
+  // Initial loading
   useEffect(() => {
     let mounted = true;
 
@@ -363,6 +472,7 @@ function Billing() {
     };
   }, []);
 
+  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (event) => {
       if (event.key === "F3") {
@@ -675,18 +785,12 @@ function Billing() {
     const cash = Number(cashAmount || 0);
     const upi = Number(upiAmount || 0);
 
-    if (
-      paymentMethod === "CASH" &&
-      Math.abs(cash - amount) > 0.01
-    ) {
+    if (paymentMethod === "CASH" && Math.abs(cash - amount) > 0.01) {
       alert(`Cash amount must be ${money(amount)}.`);
       return;
     }
 
-    if (
-      paymentMethod === "UPI" &&
-      Math.abs(upi - amount) > 0.01
-    ) {
+    if (paymentMethod === "UPI" && Math.abs(upi - amount) > 0.01) {
       alert(`UPI amount must be ${money(amount)}.`);
       return;
     }
@@ -725,22 +829,15 @@ function Billing() {
         id: currentId,
         paymentMethod,
         cashAmount:
-          paymentMethod === "CASH" || paymentMethod === "SPLIT"
-            ? cash
-            : 0,
+          paymentMethod === "CASH" || paymentMethod === "SPLIT" ? cash : 0,
         upiAmount:
-          paymentMethod === "UPI" || paymentMethod === "SPLIT"
-            ? upi
-            : 0,
+          paymentMethod === "UPI" || paymentMethod === "SPLIT" ? upi : 0,
       });
 
-      const completeData =
-        completeResponse?.data || completeResponse || {};
+      const completeData = completeResponse?.data || completeResponse || {};
 
       const completedOrder =
-        completeData?.order ||
-        completeData?.data?.order ||
-        completeData;
+        completeData?.order || completeData?.data?.order || completeData;
 
       const generatedInvoiceNumber =
         completeData?.invoiceNumber ||
@@ -751,17 +848,10 @@ function Billing() {
       // Preserve the completed bill on screen.
       setInvoiceNumber(generatedInvoiceNumber);
 
-      // Prepare and print only after the completion API succeeded.
-      // Printer failure must not make the already-saved bill appear unsaved.
-      setShowPayment(false);
-
-      if (!generatedInvoiceNumber) {
-        alert(
-          "Bill completed successfully, but no invoice number was returned. " +
-          "Automatic printing was skipped."
-        );
-      } else {
-        const receipt = {
+      // Prepare receipt only when the completion API succeeded
+      // and supplied a usable invoice number.
+      if (generatedInvoiceNumber) {
+        setPrintPayload({
           invoiceNumber: generatedInvoiceNumber,
           branch: getBranchInfo(user),
           date: new Date().toLocaleString("en-IN"),
@@ -779,22 +869,16 @@ function Billing() {
             paymentMethod === "CASH" || paymentMethod === "SPLIT" ? cash : 0,
           upiAmount:
             paymentMethod === "UPI" || paymentMethod === "SPLIT" ? upi : 0,
-        };
-
-        setPrintPayload(receipt);
-
-        try {
-          await printThermalReceipt(receipt);
-          alert(`Bill completed and print request sent.\nInvoice No: ${generatedInvoiceNumber}`);
-        } catch (printError) {
-          console.error("Thermal print error:", printError);
-          alert(
-            `Bill was saved successfully.\nInvoice No: ${generatedInvoiceNumber}` +
-            `\n\nPrinting failed: ${printError.message}` +
-            "\n\nDo not complete/save the bill again. Check the printer before retrying."
-          );
-        }
+        });
       }
+
+      setShowPayment(false);
+
+      alert(
+        generatedInvoiceNumber
+          ? `Bill completed successfully.\nInvoice No: ${generatedInvoiceNumber}`
+          : "Bill completed successfully, but no invoice number was returned. Receipt was not auto-printed."
+      );
 
       await Promise.all([loadSummary(), loadHeldBills()]);
     } catch (error) {
@@ -861,7 +945,7 @@ function Billing() {
 
   return (
     <div className="bawa-pos">
-      {/* Print-only receipt */}
+      {/* Print-only receipt (used only as browser-print fallback) */}
       <ReceiptPrint receipt={printPayload} />
 
       <header className="pos-header">
@@ -876,15 +960,6 @@ function Billing() {
         <div className="pos-header-info">
           <div className="header-pill">▣ Branch</div>
           <div className="header-pill">● Active Shift</div>
-
-          <button
-            type="button"
-            className="held-header-btn"
-            onClick={handleTestPrinter}
-            title="Send a test receipt to the Bluetooth printer"
-          >
-            🖨 Test Printer
-          </button>
 
           <button
             type="button"
@@ -908,7 +983,9 @@ function Billing() {
             <kbd>F3</kbd>
           </div>
 
-          <div className="sync-status"><i /> SYNCED</div>
+          <div className="sync-status">
+            <i /> SYNCED
+          </div>
 
           <div className="cashier-info">
             <div>
@@ -944,13 +1021,14 @@ function Billing() {
           <div className="food-search">
             <span>⌕</span>
             <input
-              ref={searchInputRef}
               placeholder="Search food item..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
             {search && (
-              <button type="button" onClick={() => setSearch("")}>×</button>
+              <button type="button" onClick={() => setSearch("")}>
+                ×
+              </button>
             )}
           </div>
 
@@ -995,9 +1073,7 @@ function Billing() {
                 const id = getFoodId(item);
                 const price = getFoodPrice(item);
                 const image = getFoodImage(item);
-                const cartItem = cart.find(
-                  (x) => String(x.id) === String(id)
-                );
+                const cartItem = cart.find((x) => String(x.id) === String(id));
 
                 return (
                   <article
@@ -1017,9 +1093,7 @@ function Billing() {
                         <div className="food-placeholder">🍛</div>
                       )}
                       {cartItem && (
-                        <span className="cart-count">
-                          {cartItem.quantity}
-                        </span>
+                        <span className="cart-count">{cartItem.quantity}</span>
                       )}
                     </div>
 
@@ -1076,7 +1150,9 @@ function Billing() {
                 🧾 New Bill
               </button>
             ) : (
-              <button type="button" onClick={clearBill}>Clear</button>
+              <button type="button" onClick={clearBill}>
+                Clear
+              </button>
             )}
           </div>
 
@@ -1130,10 +1206,22 @@ function Billing() {
           </div>
 
           <div className="bill-summary">
-            <div><span>Subtotal</span><strong>{money(subtotal)}</strong></div>
-            <div><span>Taxable Amount</span><strong>{money(taxableAmount)}</strong></div>
-            <div><span>CGST 2.5%</span><strong>{money(cgst)}</strong></div>
-            <div><span>SGST 2.5%</span><strong>{money(sgst)}</strong></div>
+            <div>
+              <span>Subtotal</span>
+              <strong>{money(subtotal)}</strong>
+            </div>
+            <div>
+              <span>Taxable Amount</span>
+              <strong>{money(taxableAmount)}</strong>
+            </div>
+            <div>
+              <span>CGST 2.5%</span>
+              <strong>{money(cgst)}</strong>
+            </div>
+            <div>
+              <span>SGST 2.5%</span>
+              <strong>{money(sgst)}</strong>
+            </div>
 
             <div className="grand-total">
               <div>
@@ -1199,7 +1287,9 @@ function Billing() {
                 <h2>Pay & Settle</h2>
                 <p>Complete current bill</p>
               </div>
-              <button type="button" onClick={() => setShowPayment(false)}>×</button>
+              <button type="button" onClick={() => setShowPayment(false)}>
+                ×
+              </button>
             </div>
 
             <div className="modal-total">
@@ -1219,7 +1309,8 @@ function Billing() {
                   className={paymentMethod === value ? "active" : ""}
                   onClick={() => selectPayment(value)}
                 >
-                  {icon}<strong>{label}</strong>
+                  {icon}
+                  <strong>{label}</strong>
                 </button>
               ))}
             </div>
@@ -1287,11 +1378,7 @@ function Billing() {
               <button type="button" onClick={() => setShowPayment(false)}>
                 Back
               </button>
-              <button
-                type="button"
-                disabled={saving}
-                onClick={handleComplete}
-              >
+              <button type="button" disabled={saving} onClick={handleComplete}>
                 {saving ? "Processing..." : "Confirm & Complete"}
               </button>
             </div>
@@ -1308,7 +1395,9 @@ function Billing() {
                 <h2>Held Bills</h2>
                 <p>Resume pending bills</p>
               </div>
-              <button type="button" onClick={() => setShowHeldBills(false)}>×</button>
+              <button type="button" onClick={() => setShowHeldBills(false)}>
+                ×
+              </button>
             </div>
 
             <div className="held-list">
