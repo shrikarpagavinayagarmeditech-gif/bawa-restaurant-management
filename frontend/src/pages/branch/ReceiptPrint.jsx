@@ -26,18 +26,17 @@ export default function ReceiptPrint({ receipt }) {
           {branch.address && (
             <p className="receipt-address">{branch.address}</p>
           )}
-          {branch.phone && <p>Ph: {branch.phone}</p>}
+          {branch.phone && <p>Mobile: {branch.phone}</p>}
           {branch.gstin && <p>GSTIN: {branch.gstin}</p>}
         </div>
 
-        <p className="center receipt-title">PAYMENT RECEIPT</p>
+        <p className="center receipt-title">INVOICE RECEIPT</p>
 
         <hr />
 
-        <p>Invoice: {receipt.invoiceNumber}</p>
+        <p>Invoice NO: {receipt.invoiceNumber}</p>
         <p>Date: {receipt.date}</p>
-        <p>Service: {receipt.serviceMode?.replaceAll("_", " ")}</p>
-        <p>Cashier: {receipt.cashier}</p>
+
 
         <hr />
 
@@ -74,10 +73,10 @@ export default function ReceiptPrint({ receipt }) {
           </div>
         )}
 
-        <div className="receipt-row">
+        {/* <div className="receipt-row">
           <span>Taxable Amount</span>
           <span>{money(receipt.taxableAmount)}</span>
-        </div>
+        </div> */}
 
         <div className="receipt-row">
           <span>CGST (2.5%)</span>
@@ -98,7 +97,7 @@ export default function ReceiptPrint({ receipt }) {
 
         <hr />
 
-        <p>Payment Method: {receipt.paymentMethod}</p>
+        {/* <p>Payment Method: {receipt.paymentMethod}</p>
 
         {receipt.paymentMethod === "CASH" && (
           <p>Cash: {money(receipt.cashAmount)}</p>
@@ -113,11 +112,12 @@ export default function ReceiptPrint({ receipt }) {
             <p>Cash: {money(receipt.cashAmount)}</p>
             <p>UPI: {money(receipt.upiAmount)}</p>
           </>
-        )}
+        )} */}
 
         <hr />
         <p className="center">Thank you!</p>
         <p className="center">Visit Again</p>
+        <p className="center">ஆர்டரின் பெயரில் அணைத்து விசேஷங்களுக்கும் சமைத்து தரப்படும் </p>
       </div>
     </div>
   );
