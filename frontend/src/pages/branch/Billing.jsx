@@ -152,6 +152,87 @@ const getBranchInfo = (user) => {
   };
 };
 
+// Android Bluetooth thermal printing through Cleanter. Install and configure
+// Cleanter on the same Android tablet as this React billing app.
+const buildThermalReceiptContent = (receipt) => {
+  const branch = receipt.branch || {};
+  const items = Array.isArray(receipt.items) ? receipt.items : [];
+  const amount = (value) => Number(value || 0).toFixed(2);
+
+  return [
+    { type: "text", text: branch.name || "BAWA RESTAURANT", align: "center", bold: true, size: "large" },
+    ...(branch.address ? [{ type: "text", text: branch.address, align: "center" }] : []),
+    ...(branch.phone ? [{ type: "text", text: `Ph: ${branch.phone}`, align: "center" }] : []),
+    ...(branch.gstin ? [{ type: "text", text: `GSTIN: ${branch.gstin}`, align: "center" }] : []),
+    { type: "divider" },
+    { type: "text", text: "PAYMENT RECEIPT", align: "center", bold: true },
+    { type: "text", text: `Invoice: ${receipt.invoiceNumber || ""}` },
+    { type: "text", text: `Date: ${receipt.date || ""}` },
+    { type: "text", text: `Service: ${String(receipt.serviceMode || "").replace(/_/g, " ")}` },
+    { type: "text", text: `Cashier: ${receipt.cashier || "Branch User"}` },
+    { type: "divider" },
+    { type: "row", left: "ITEM / QTY", right: "AMOUNT", bold: true },
+    ...items.map((item) => ({
+      type: "row",
+      left: `${item.name || "Food Item"} x ${Number(item.quantity || 0)}`,
+      right: amount(Number(item.price || 0) * Number(item.quantity || 0)),
+    })),
+    { type: "divider" },
+    { type: "row", left: "Subtotal", right: amount(receipt.subtotal) },
+    ...(Number(receipt.discountAmount || 0) > 0 ? [{ type: "row", left: "Discount", right: `-${amount(receipt.discountAmount)}` }] : []),
+    { type: "row", left: "Taxable Amount", right: amount(receipt.taxableAmount) },
+    { type: "row", left: "CGST (2.5%)", right: amount(receipt.cgst) },
+    { type: "row", left: "SGST (2.5%)", right: amount(receipt.sgst) },
+    { type: "divider" },
+    { type: "row", left: "GRAND TOTAL", right: amount(receipt.total), bold: true },
+    { type: "divider" },
+    { type: "text", text: `Payment Method: ${receipt.paymentMethod || "CASH"}` },
+    ...(Number(receipt.cashAmount || 0) > 0 ? [{ type: "text", text: `Cash: ${amount(receipt.cashAmount)}` }] : []),
+    ...(Number(receipt.upiAmount || 0) > 0 ? [{ type: "text", text: `UPI: ${amount(receipt.upiAmount)}` }] : []),
+    { type: "divider" },
+    { type: "text", text: "Thank you!", align: "center", bold: true },
+    { type: "text", text: "Visit Again", align: "center" },
+    { type: "feed", lines: 3 },
+  ];
+};
+
+const printThermalReceipt = async (receipt) => {
+  // Make this the first bridge request from the cashier's button flow so
+  // Chrome can request local-device permission if the tablet needs it.
+  const response = await fetch("http://localhost:9100/print", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ cut: true, content: buildThermalReceiptContent(receipt) }),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(result.fix || result.message || result.error || `Printer request failed (${response.status}). Check Cleanter and Bluetooth.`);
+  }
+  return result;
+};
+
+const testThermalPrinter = async () => {
+  const response = await fetch("http://localhost:9100/print", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      cut: true,
+      content: [
+        { type: "text", text: "BAWA RESTAURANT", align: "center", bold: true, size: "large" },
+        { type: "divider" },
+        { type: "text", text: "PRINTER TEST", align: "center", bold: true },
+        { type: "text", text: "Bluetooth printer is ready.", align: "center" },
+        { type: "feed", lines: 3 },
+      ],
+    }),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(result.fix || result.message || result.error || `Printer test failed (${response.status}).`);
+  }
+  return result;
+};
+
 function Billing() {
   // Menu
   const [menuItems, setMenuItems] = useState([]);
@@ -194,34 +275,27 @@ function Billing() {
   const [holdNumber, setHoldNumber] = useState(null);
   const [invoiceNumber, setInvoiceNumber] = useState(null);
 
-  // Printing
+  // Receipt data retained for the existing ReceiptPrint component.
+  // Actual printing is handled by the Android Bluetooth bridge.
   const [printPayload, setPrintPayload] = useState(null);
-  const printedInvoiceRef = useRef(null);
 
   const user = useMemo(() => getUserFromStorage(), []);
 
-  // Preload the receipt logo so it is ready before window.print() runs.
-  useEffect(() => {
-    const img = new Image();
-    img.src = "/images/bawa-logo.png";
-  }, []);
-
-  // Print only after a successful completion and a known invoice number.
-  useEffect(() => {
-    if (!printPayload?.invoiceNumber) return;
-
-    const invoiceKey = String(printPayload.invoiceNumber);
-
-    if (printedInvoiceRef.current === invoiceKey) return;
-
-    const timer = window.setTimeout(() => {
-      // Prevent a duplicate print trigger for this invoice in this page.
-      printedInvoiceRef.current = invoiceKey;
-      window.print();
-    }, 500);
-
-    return () => window.clearTimeout(timer);
-  }, [printPayload]);
+  // Use this button once on the tablet to test the paired printer and
+  // grant Chrome local-device access if a permission prompt appears.
+  const handleTestPrinter = async () => {
+    try {
+      await testThermalPrinter();
+      alert("Printer test sent successfully. Check the thermal printer.");
+    } catch (error) {
+      console.error("Printer test error:", error);
+      alert(
+        `Printer test failed: ${error.message}\n\n` +
+        "Open Cleanter on this Android tablet, select the paired Bluetooth printer, " +
+        "and allow the browser's device-access permission if prompted."
+      );
+    }
+  };
 
   // Load menu
   const loadMenu = async () => {
@@ -677,10 +751,17 @@ function Billing() {
       // Preserve the completed bill on screen.
       setInvoiceNumber(generatedInvoiceNumber);
 
-      // Prepare receipt only when the completion API succeeded
-      // and supplied a usable invoice number.
-      if (generatedInvoiceNumber) {
-        setPrintPayload({
+      // Prepare and print only after the completion API succeeded.
+      // Printer failure must not make the already-saved bill appear unsaved.
+      setShowPayment(false);
+
+      if (!generatedInvoiceNumber) {
+        alert(
+          "Bill completed successfully, but no invoice number was returned. " +
+          "Automatic printing was skipped."
+        );
+      } else {
+        const receipt = {
           invoiceNumber: generatedInvoiceNumber,
           branch: getBranchInfo(user),
           date: new Date().toLocaleString("en-IN"),
@@ -695,23 +776,25 @@ function Billing() {
           total,
           paymentMethod,
           cashAmount:
-            paymentMethod === "CASH" || paymentMethod === "SPLIT"
-              ? cash
-              : 0,
+            paymentMethod === "CASH" || paymentMethod === "SPLIT" ? cash : 0,
           upiAmount:
-            paymentMethod === "UPI" || paymentMethod === "SPLIT"
-              ? upi
-              : 0,
-        });
+            paymentMethod === "UPI" || paymentMethod === "SPLIT" ? upi : 0,
+        };
+
+        setPrintPayload(receipt);
+
+        try {
+          await printThermalReceipt(receipt);
+          alert(`Bill completed and print request sent.\nInvoice No: ${generatedInvoiceNumber}`);
+        } catch (printError) {
+          console.error("Thermal print error:", printError);
+          alert(
+            `Bill was saved successfully.\nInvoice No: ${generatedInvoiceNumber}` +
+            `\n\nPrinting failed: ${printError.message}` +
+            "\n\nDo not complete/save the bill again. Check the printer before retrying."
+          );
+        }
       }
-
-      setShowPayment(false);
-
-      alert(
-        generatedInvoiceNumber
-          ? `Bill completed successfully.\nInvoice No: ${generatedInvoiceNumber}`
-          : "Bill completed successfully, but no invoice number was returned. Receipt was not auto-printed."
-      );
 
       await Promise.all([loadSummary(), loadHeldBills()]);
     } catch (error) {
@@ -793,6 +876,15 @@ function Billing() {
         <div className="pos-header-info">
           <div className="header-pill">▣ Branch</div>
           <div className="header-pill">● Active Shift</div>
+
+          <button
+            type="button"
+            className="held-header-btn"
+            onClick={handleTestPrinter}
+            title="Send a test receipt to the Bluetooth printer"
+          >
+            🖨 Test Printer
+          </button>
 
           <button
             type="button"
