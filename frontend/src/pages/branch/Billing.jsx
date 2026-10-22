@@ -244,9 +244,8 @@ const buildReceiptHtml = (receipt, logoDataUri) => {
       <div style="text-align:center;font-weight:bold;margin-top:6px;">PAYMENT RECEIPT</div>
       ${hr}
 
-      <div>Invoice: ${escapeHtml(receipt.invoiceNumber)}</div>
-      <div>Date: ${escapeHtml(receipt.date)}</div>
-      <div>Service: ${escapeHtml(String(receipt.serviceMode || "").replaceAll("_", " "))}</div>
+   <div>Invoice: ${escapeHtml(receipt.invoiceNumber)}</div>
+<div>Date: ${escapeHtml(receipt.date)}</div>
       
       ${hr}
 
@@ -276,7 +275,7 @@ const buildReceiptHtml = (receipt, logoDataUri) => {
       ${hr}
 
       
-      ${paymentLines}
+     
       ${hr}
 
      <div style="text-align:center; white-space:nowrap; font-weight:bold; margin-top:8px;">
