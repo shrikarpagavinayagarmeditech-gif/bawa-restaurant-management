@@ -10,6 +10,7 @@
   "dependencies": {
     "@vitejs/plugin-react": "^5.0.4",
     "axios": "^1.20.0",
+    "qz-tray": "^2.3.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.18.3",
