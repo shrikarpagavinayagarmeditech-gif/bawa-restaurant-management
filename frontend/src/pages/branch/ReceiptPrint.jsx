@@ -36,8 +36,6 @@ export default function ReceiptPrint({ receipt }) {
 
         <p>Invoice NO: {receipt.invoiceNumber}</p>
         <p>Date: {receipt.date}</p>
-
-
         <hr />
 
         <table className="receipt-items">
