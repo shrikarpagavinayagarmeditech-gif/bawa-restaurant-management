@@ -156,3 +156,26 @@
     print-color-adjust: exact;
   }
 }
+
+
+.receipt-footer {
+  width: 100%;
+  text-align: center;
+  margin-top: 8px;
+  padding-bottom: 5px;
+}
+
+.receipt-footer .thank-you {
+  margin: 4px 0 8px;
+  white-space: nowrap;
+  font-weight: bold;
+  font-size: 12px;
+}
+
+.receipt-footer .receipt-tamil-message {
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  text-align: center;
+}

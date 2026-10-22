@@ -112,10 +112,19 @@ export default function ReceiptPrint({ receipt }) {
           </>
         )} */}
 
-        <hr />
-        <p className="center">Thank you!</p>
-        <p className="center">Visit Again</p>
-        <p className="center">ஆர்டரின் பெயரில் அணைத்து விசேஷங்களுக்கும் சமைத்து தரப்படும் </p>
+      
+<hr />
+
+<div className="receipt-footer">
+  <p className="center thank-you">
+    Thank you! Visit Again
+  </p>
+
+  <p className="center receipt-tamil-message">
+    ஆர்டரின் பெயரில் அணைத்து விசேஷங்களுக்கும் சமைத்து தரப்படும்
+  </p>
+</div>
+
       </div>
     </div>
   );
