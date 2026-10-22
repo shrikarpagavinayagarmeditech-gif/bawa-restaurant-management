@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import qz from "qz-tray";
+import { createRoot } from "react-dom/client";
+// import qz from "qz-tray";
 import api from "../../api/api.js";
 
 import {
@@ -14,6 +15,7 @@ import {
 
 import ReceiptPrint from "./ReceiptPrint.jsx";
 import "./Billing.css";
+import html2canvas from "html2canvas";
 
 const LOGO_SRC = "/images/bawa-logo.png";
 
@@ -65,6 +67,39 @@ const getFoodPrice = (item) =>
       0
   );
 
+// const getFoodImage = (item) => {
+//   const image =
+//     item?.imageUrl ||
+//     item?.image ||
+//     item?.foodItem?.imageUrl ||
+//     item?.foodItem?.image ||
+//     null;
+
+//   if (!image) return null;
+
+//   if (/^data:/i.test(image)) return image;
+
+//   try {
+//     const url = new URL(image, window.location.origin);
+
+//     if (
+//       ["localhost", "127.0.0.1"].includes(url.hostname) ||
+//       url.hostname === window.location.hostname
+//     ) {
+//       return `${url.pathname}${url.search}${url.hash}`;
+//     }
+
+//     if (/^https?:\/\//i.test(image)) return image;
+
+//     return image.startsWith("/") ? image : `/${image}`;
+//   } catch {
+//     return image.startsWith("/") ? image : `/${image}`;
+//   }
+// };
+
+
+const API_ORIGIN = "https://bawa.quiltoaiapps.com";
+
 const getFoodImage = (item) => {
   const image =
     item?.imageUrl ||
@@ -73,27 +108,20 @@ const getFoodImage = (item) => {
     item?.foodItem?.image ||
     null;
 
-  if (!image) return null;
+  if (!image || typeof image !== "string") return null;
 
+  // Preserve embedded images
   if (/^data:/i.test(image)) return image;
 
-  try {
-    const url = new URL(image, window.location.origin);
+  // Preserve complete external URLs
+  if (/^https?:\/\//i.test(image)) return image;
 
-    if (
-      ["localhost", "127.0.0.1"].includes(url.hostname) ||
-      url.hostname === window.location.hostname
-    ) {
-      return `${url.pathname}${url.search}${url.hash}`;
-    }
+  // Convert relative upload paths to backend URLs
+  const path = image.replace(/^\/+/, "");
 
-    if (/^https?:\/\//i.test(image)) return image;
-
-    return image.startsWith("/") ? image : `/${image}`;
-  } catch {
-    return image.startsWith("/") ? image : `/${image}`;
-  }
+  return `${API_ORIGIN}/${path}`;
 };
+
 
 const getFoodCategory = (item) =>
   item?.category || item?.foodItem?.category || null;
@@ -350,39 +378,138 @@ function Billing() {
   }, []);
 
   // Direct print through QZ Tray; falls back to the browser print dialog.
-  const printReceipt = async (receipt) => {
-    try {
-      if (!qz.websocket.isActive()) {
-        await qz.websocket.connect();
-      }
+  
 
-      const printerName = PRINTER_NAME || (await qz.printers.getDefault());
 
-      const config = qz.configs.create(printerName, {
-        units: "mm",
-        size: { width: PAPER_WIDTH_MM },
-        margins: 0,
-        scaleContent: true,
-        colorType: "blackwhite",
-      });
+const printReceipt = async (receipt) => {
+  let printContainer = null;
+  let root = null;
 
-      const html = buildReceiptHtml(receipt, logoDataUriRef.current);
+  try {
+    // Create a hidden container.
+    printContainer = document.createElement("div");
 
-      await qz.print(config, [
-        {
-          type: "pixel",
-          format: "html",
-          flavor: "plain",
-          data: html,
-        },
-      ]);
-    } catch (error) {
-      console.error("QZ Tray print failed, using browser print:", error);
-      window.print();
+    Object.assign(printContainer.style, {
+      position: "fixed",
+      left: "-10000px",
+      top: "0",
+      width: "72mm",
+      background: "#ffffff",
+      zIndex: "-1",
+    });
+
+    document.body.appendChild(printContainer);
+
+    // Render the React receipt component.
+    root = createRoot(printContainer);
+    root.render(<ReceiptPrint receipt={receipt} />);
+
+    // Wait for React to render.
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // Wait for the logo and other images to load.
+    const images = Array.from(
+      printContainer.querySelectorAll("img")
+    );
+
+    await Promise.all(
+      images.map((img) => {
+        if (img.complete) return Promise.resolve();
+
+        return new Promise((resolve) => {
+          img.onload = resolve;
+          img.onerror = resolve;
+        });
+      })
+    );
+
+    // Wait for fonts to load.
+    if (document.fonts?.ready) {
+      await document.fonts.ready;
     }
-  };
+
+    const receiptElement =
+      printContainer.querySelector(".thermal-receipt");
+
+    if (!receiptElement) {
+      throw new Error("Receipt component could not be rendered.");
+    }
+
+    // Convert the styled receipt into an image.
+    const canvas = await html2canvas(receiptElement, {
+      backgroundColor: "#ffffff",
+      scale: 3,
+      useCORS: true,
+      logging: false,
+    });
+
+    const base64 = canvas
+      .toDataURL("image/png")
+      .split(",")[1];
+
+    // Send the image directly to the printer bridge.
+    const response = await fetch("http://localhost:9100/print", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        cut: true,
+        paperWidth: 80, // Change to 58 for a 58mm printer.
+        reference: String(receipt.invoiceNumber || ""),
+        content: [
+          {
+            type: "image",
+            base64,
+            align: "center",
+          },
+          {
+            type: "feed",
+            lines: 3,
+          },
+        ],
+      }),
+    });
+
+    const result = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(
+        result.message ||
+          result.detail ||
+          `Print failed with status ${response.status}`
+      );
+    }
+
+    console.log("Receipt printed successfully:", result);
+    return true;
+  } catch (error) {
+    console.error("Thermal printing failed:", error);
+
+    alert(
+      `Receipt printing failed: ${error.message}. Check the Android print bridge and Bluetooth printer.`
+    );
+
+    return false;
+  } finally {
+    // Clean up only after image capture and print submission.
+    if (root) {
+      root.unmount();
+    }
+
+    if (printContainer) {
+      printContainer.remove();
+    }
+  }
+};
+
+
+
 
   // Print only after a successful completion and a known invoice number.
+ 
+
+  // Print after successful billing, then start a new bill.
   useEffect(() => {
     if (!printPayload?.invoiceNumber) return;
 
@@ -390,25 +517,47 @@ function Billing() {
 
     if (printedInvoiceRef.current === invoiceKey) return;
 
-    const timer = window.setTimeout(() => {
-      // Prevent a duplicate print trigger for this invoice in this page.
-      printedInvoiceRef.current = invoiceKey;
-      printReceipt(printPayload);
-    }, 500);
+    // Prevent duplicate print requests.
+    printedInvoiceRef.current = invoiceKey;
 
-    return () => window.clearTimeout(timer);
-  }, [printPayload]);
+    let cancelled = false;
 
-  // Disconnect QZ when leaving the page
-  useEffect(() => {
-    return () => {
-      try {
-        if (qz.websocket.isActive()) qz.websocket.disconnect();
-      } catch {
-        /* ignore */
+    const printAndStartNewBill = async () => {
+      const printed = await printReceipt(printPayload);
+
+      if (cancelled) return;
+
+      if (printed) {
+        // Reset the completed bill after printing succeeds.
+        startNewBill();
+      } else {
+        // Keep the completed bill on screen if printing fails.
+        // The cashier can retry printing without losing the invoice.
+        alert(
+          `Invoice ${invoiceKey} is completed, but printing failed.`
+        );
       }
     };
-  }, []);
+
+    void printAndStartNewBill();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [printPayload]);
+
+
+
+  // // Disconnect QZ when leaving the page
+  // useEffect(() => {
+  //   return () => {
+  //     try {
+  //       if (qz.websocket.isActive()) qz.websocket.disconnect();
+  //     } catch {
+  //       /* ignore */
+  //     }
+  //   };
+  // }, []);
 
   // Load menu
   const loadMenu = async () => {
@@ -965,14 +1114,14 @@ function Billing() {
           <div className="header-pill">▣ Branch</div>
           <div className="header-pill">● Active Shift</div>
 
-          <button
+          {/* <button
             type="button"
             className="held-header-btn"
             onClick={() => setShowHeldBills(true)}
           >
             ⏸ Held Bills
             {heldBills.length > 0 && <b>{heldBills.length}</b>}
-          </button>
+          </button> */}
         </div>
 
         <div className="pos-header-right">
@@ -1246,7 +1395,7 @@ function Billing() {
             </button>
           ) : (
             <>
-              <div className="bill-actions">
+              {/* <div className="bill-actions">
                 <button
                   type="button"
                   className="hold-action"
@@ -1255,7 +1404,7 @@ function Billing() {
                 >
                   ⏸ Hold Bill
                 </button>
-              </div>
+              </div> */}
 
               <button
                 type="button"

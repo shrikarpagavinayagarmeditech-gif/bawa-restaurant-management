@@ -93,7 +93,7 @@ export default function ReceiptPrint({ receipt }) {
           <strong>{money(receipt.total)}</strong>
         </div>
 
-        <hr />
+      
 
         {/* <p>Payment Method: {receipt.paymentMethod}</p>
 

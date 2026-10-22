@@ -702,46 +702,147 @@ export const getDraftOrders = async (
 // GET ORDER BY ID
 // ============================================================
 
-export const getOrderById = async (
-  req,
-  res
-) => {
+// export const getOrderById = async (
+//   req,
+//   res
+// ) => {
+//   try {
+//     const branchId = req.user.branchId;
+
+//     const { id } = req.params;
+
+//     if (!branchId) {
+//       return res.status(403).json({
+//         success: false,
+//         message:
+//           "Branch is not assigned to this user",
+//       });
+//     }
+
+//     const order =
+//       await prisma.order.findFirst({
+//         where: {
+//           id,
+//           branchId,
+//         },
+
+//         include: {
+//           branch: true,
+
+//           shift: true,
+
+//           items: {
+//             include: {
+//               foodItem: {
+//                 include: {
+//                   category: true,
+//                 },
+//               },
+//             },
+//           },
+//         },
+//       });
+
+//     if (!order) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Bill not found",
+//       });
+//     }
+
+//     return res.status(200).json({
+//       success: true,
+
+//       data: {
+//         ...order,
+
+//         subtotal:
+//           Number(order.subtotal),
+
+//         discountAmount:
+//           Number(order.discountAmount),
+
+//         taxableAmount:
+//           Number(order.taxableAmount),
+
+//         cgstAmount:
+//           Number(order.cgstAmount),
+
+//         sgstAmount:
+//           Number(order.sgstAmount),
+
+//         taxAmount:
+//           Number(order.taxAmount),
+
+//         totalAmount:
+//           Number(order.totalAmount),
+
+//         cashAmount:
+//           Number(order.cashAmount),
+
+//         upiAmount:
+//           Number(order.upiAmount),
+
+//         items:
+//           order.items.map(
+//             (item) => ({
+//               ...item,
+
+//               rate:
+//                 Number(item.rate),
+
+//               amount:
+//                 Number(item.amount),
+//             })
+//           ),
+//       },
+//     });
+//   } catch (error) {
+//     console.error(
+//       "Get order error:",
+//       error
+//     );
+
+//     return res.status(500).json({
+//       success: false,
+//       message:
+//         "Failed to fetch bill",
+//     });
+//   }
+// };
+
+
+export const getOrderById = async (req, res) => {
   try {
     const branchId = req.user.branchId;
-
     const { id } = req.params;
 
     if (!branchId) {
       return res.status(403).json({
         success: false,
-        message:
-          "Branch is not assigned to this user",
+        message: "Branch is not assigned to this user",
       });
     }
 
-    const order =
-      await prisma.order.findFirst({
-        where: {
-          id,
-          branchId,
-        },
-
-        include: {
-          branch: true,
-
-          shift: true,
-
-          items: {
-            include: {
-              foodItem: {
-                include: {
-                  category: true,
-                },
+    const order = await prisma.order.findFirst({
+      where: {
+        id,
+        branchId,
+      },
+      include: {
+        branch: true,
+        shift: true,
+        orderitem: {
+          include: {
+            fooditem: {
+              include: {
+                category: true,
               },
             },
           },
         },
-      });
+      },
+    });
 
     if (!order) {
       return res.status(404).json({
@@ -750,66 +851,44 @@ export const getOrderById = async (
       });
     }
 
+    const { orderitem, ...orderData } = order;
+
     return res.status(200).json({
       success: true,
-
       data: {
-        ...order,
+        ...orderData,
+        subtotal: Number(order.subtotal),
+        discountAmount: Number(order.discountAmount),
+        taxableAmount: Number(order.taxableAmount),
+        cgstAmount: Number(order.cgstAmount),
+        sgstAmount: Number(order.sgstAmount),
+        taxAmount: Number(order.taxAmount),
+        totalAmount: Number(order.totalAmount),
+        cashAmount: Number(order.cashAmount),
+        upiAmount: Number(order.upiAmount),
 
-        subtotal:
-          Number(order.subtotal),
+        items: orderitem.map((item) => {
+          const { fooditem, ...itemData } = item;
 
-        discountAmount:
-          Number(order.discountAmount),
-
-        taxableAmount:
-          Number(order.taxableAmount),
-
-        cgstAmount:
-          Number(order.cgstAmount),
-
-        sgstAmount:
-          Number(order.sgstAmount),
-
-        taxAmount:
-          Number(order.taxAmount),
-
-        totalAmount:
-          Number(order.totalAmount),
-
-        cashAmount:
-          Number(order.cashAmount),
-
-        upiAmount:
-          Number(order.upiAmount),
-
-        items:
-          order.items.map(
-            (item) => ({
-              ...item,
-
-              rate:
-                Number(item.rate),
-
-              amount:
-                Number(item.amount),
-            })
-          ),
+          return {
+            ...itemData,
+            foodItem: fooditem,
+            rate: Number(item.rate),
+            amount: Number(item.amount),
+          };
+        }),
       },
     });
   } catch (error) {
-    console.error(
-      "Get order error:",
-      error
-    );
+    console.error("Get order error:", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Failed to fetch bill",
+      message: "Failed to fetch bill",
     });
   }
 };
+
 
 // ============================================================
 // GET ALL BRANCH ORDERS
@@ -1467,7 +1546,7 @@ export const cancelDraftOrder = async (
           cancellationReason:
             cancellationReason ||
             "Cancelled by branch",
-          
+
           cancelledAt:
             new Date(),
         },

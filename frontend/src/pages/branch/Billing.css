@@ -973,7 +973,7 @@
     align-items: center;
     gap: 8px;
     border-radius: 8px;
-    background: var(--primary);
+     background-color: #008000;
     color: #fff;
     cursor: pointer;
     font-size: 12px;
@@ -982,7 +982,7 @@
 }
 
 .bawa-pos .settle-button:hover:not(:disabled) {
-    background: var(--primary-dark);
+    background-color: #008000;
 }
 
 .bawa-pos .settle-button>span {
@@ -997,7 +997,7 @@
     padding: 3px 5px;
     border: 1px solid rgba(255, 255, 255, .18);
     border-radius: 4px;
-    background: rgba(255, 255, 255, .14);
+    background-color: #008000;
     color: #fff;
     font-size: 8px;
 }

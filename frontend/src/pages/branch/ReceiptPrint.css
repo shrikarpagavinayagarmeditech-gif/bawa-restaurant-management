@@ -179,3 +179,78 @@
   overflow-wrap: anywhere;
   text-align: center;
 }
+
+#receipt-print-root {
+  width: 72mm;
+  background: #fff;
+  color: #000;
+}
+
+.thermal-receipt {
+  width: 72mm;
+  box-sizing: border-box;
+  padding: 2mm;
+  background: #fff;
+  color: #000;
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+}
+
+.receipt-logo {
+  display: block;
+  width: 100px;
+  height: auto;
+  object-fit: contain;
+  margin: 0 auto 8px;
+}
+
+.receipt-header,
+.center {
+  text-align: center;
+}
+
+.receipt-items {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.receipt-items th:first-child,
+.receipt-items td:first-child {
+  width: 55%;
+  overflow-wrap: anywhere;
+}
+
+.receipt-items th:nth-child(2),
+.receipt-items td:nth-child(2) {
+  width: 15%;
+  text-align: center;
+}
+
+.receipt-items th:last-child,
+.receipt-items td:last-child {
+  width: 30%;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.receipt-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 4px 0;
+}
+
+.receipt-grand-total {
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.receipt-footer {
+  margin-top: 8px;
+}
+
+.receipt-tamil-message {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
