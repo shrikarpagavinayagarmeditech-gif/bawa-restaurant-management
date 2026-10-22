@@ -1,10 +1,11 @@
 
 import axios from "axios";
 
-// Local development: http://localhost:5000/api
-// Production: https://bawa.quiltoaiapps.com/api
 const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "/api";
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.DEV
+    ? "http://localhost:5000/api"
+    : "https://bawa.quiltoaiapps.com/api");
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -13,7 +14,6 @@ const api = axios.create({
   },
 });
 
-// Request interceptor
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("token");
@@ -27,7 +27,6 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor
 api.interceptors.response.use(
   (response) => response,
   (error) => {
