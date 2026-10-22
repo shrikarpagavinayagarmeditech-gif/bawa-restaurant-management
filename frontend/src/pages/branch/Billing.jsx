@@ -247,7 +247,7 @@ const buildReceiptHtml = (receipt, logoDataUri) => {
       <div>Invoice: ${escapeHtml(receipt.invoiceNumber)}</div>
       <div>Date: ${escapeHtml(receipt.date)}</div>
       <div>Service: ${escapeHtml(String(receipt.serviceMode || "").replaceAll("_", " "))}</div>
-      <div>Cashier: ${escapeHtml(receipt.cashier)}</div>
+      
       ${hr}
 
       <table style="width:100%;border-collapse:collapse;font-size:12px;">
@@ -268,19 +268,24 @@ const buildReceiptHtml = (receipt, logoDataUri) => {
           ? row("Discount", `-${rs(receipt.discountAmount)}`)
           : ""
       }
-      ${row("Taxable Amount", rs(receipt.taxableAmount))}
+     
       ${row("CGST (2.5%)", rs(receipt.cgst))}
       ${row("SGST (2.5%)", rs(receipt.sgst))}
       ${hr}
       ${row("GRAND TOTAL", rs(receipt.total), true)}
       ${hr}
 
-      <div>Payment Method: ${escapeHtml(receipt.paymentMethod)}</div>
+      
       ${paymentLines}
       ${hr}
 
-      <div style="text-align:center;">Thank you!</div>
-      <div style="text-align:center;">Visit Again</div>
+     <div style="text-align:center; white-space:nowrap; font-weight:bold; margin-top:8px;">
+  Thank you! Visit Again
+</div>
+
+<div style="text-align:center; font-size:10px; line-height:1.5; margin-top:6px;">
+  ஆர்டரின் பெயரில் அணைத்து விசேஷங்களுக்கும் சமைத்து தரப்படும்
+</div>
     </div>
   </body>
 </html>`;
