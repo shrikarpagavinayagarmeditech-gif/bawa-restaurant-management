@@ -1,10 +1,11 @@
+
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 export const getBranchMenu = async (req, res) => {
   try {
-    // branchId comes from the logged-in user's JWT
+    // Logged-in user's branch
     const branchId = req.user.branchId;
 
     if (!branchId) {
@@ -14,11 +15,9 @@ export const getBranchMenu = async (req, res) => {
       });
     }
 
-    // Make sure the branch itself is active
+    // Check branch
     const branch = await prisma.branch.findUnique({
-      where: {
-        id: branchId,
-      },
+      where: { id: branchId },
     });
 
     if (!branch) {
@@ -35,33 +34,38 @@ export const getBranchMenu = async (req, res) => {
       });
     }
 
-    // Get only active food items under active categories
+    // Fetch active items.
+    // Category remains alphabetical.
+    // Food items follow saved manual sortOrder.
     const foodItems = await prisma.foodItem.findMany({
-  where: {
-    active: true,
-    category: {
-      active: true,
-    },
-  },
-  include: {
-    category: true,
-    branchFoodRates: {
       where: {
-        branchId,
+        active: true,
+        category: {
+          active: true,
+        },
       },
-    },
-  },
-  orderBy: [
-    {
-      category: {
-        name: "asc",
+      include: {
+        category: true,
+        branchFoodRates: {
+          where: {
+            branchId,
+          },
+        },
       },
-    },
-    {
-      name: "asc",
-    },
-  ],
-});
+      orderBy: [
+        {
+          category: {
+            name: "asc",
+          },
+        },
+        {
+          sortOrder: "asc",
+        },
+        {
+          name: "asc",
+        },
+      ],
+    });
 
     const menu = foodItems.map((foodItem) => {
       const branchRate = foodItem.branchFoodRates[0];
