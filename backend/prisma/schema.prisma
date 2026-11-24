@@ -1,3 +1,4 @@
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -57,6 +58,7 @@ model expense {
   branch    branch   @relation(fields: [branchId], references: [id], map: "Expense_branchId_fkey")
 
   @@index([branchId], map: "Expense_branchId_idx")
+
 }
 
 model FoodItem {
@@ -67,12 +69,14 @@ model FoodItem {
   rate            Decimal          @db.Decimal(10, 2)
   description     String?
   active          Boolean          @default(true)
+  sortOrder       Int              @default(0)
   createdAt       DateTime         @default(now())
   branchFoodRates BranchFoodRate[]
   category        category         @relation(fields: [categoryId], references: [id], map: "FoodItem_categoryId_fkey")
   orderitem       orderitem[]
 
   @@index([categoryId], map: "FoodItem_categoryId_idx")
+
   @@map("fooditem")
 }
 
@@ -97,7 +101,7 @@ model invoicesequence {
   lastNumber Int      @default(0)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-  branch     branch   @relation(fields: [branchId], references: [id], onDelete: Cascade, map: "InvoiceSequence_branchId_fkey")
+  branch     branch   @relation(fields: [branchId], references: [id], onDelete: Cascade, map: "InvoiceSequence_branchId_year_month_key")
 
   @@unique([branchId, year, month], map: "InvoiceSequence_branchId_year_month_key")
 }
