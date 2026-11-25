@@ -100,9 +100,9 @@ function validatePayment(
   cashAmount = 0,
   upiAmount = 0
 ) {
-  const total = Number(totalAmount);
-  const cash = Number(cashAmount || 0);
-  const upi = Number(upiAmount || 0);
+  const total = Number(Number(totalAmount).toFixed(2));
+  const cash = Number(Number(cashAmount || 0).toFixed(2));
+  const upi = Number(Number(upiAmount || 0).toFixed(2));
 
   if (!["CASH", "UPI", "SPLIT"].includes(paymentMethod)) {
     throw new Error("Invalid payment method");
@@ -131,10 +131,8 @@ function validatePayment(
   }
 
   if (paymentMethod === "SPLIT") {
-    if (cash <= 0 || upi <= 0) {
-      throw new Error(
-        "Split payment must contain both cash and UPI amounts"
-      );
+    if (cash < 0 || upi < 0 || (cash === 0 && upi === 0)) {
+      throw new Error("Invalid split payment amounts");
     }
 
     if (Math.abs(cash + upi - total) > 0.01) {
@@ -144,8 +142,8 @@ function validatePayment(
     }
 
     return {
-      cashAmount: Number(cash.toFixed(2)),
-      upiAmount: Number(upi.toFixed(2)),
+      cashAmount: cash,
+      upiAmount: upi,
     };
   }
 }
@@ -421,7 +419,7 @@ export async function updateDraftBill(req, res) {
 
     const updatedOrder = await prisma.$transaction(
       async (tx) => {
-       await tx.orderitem.deleteMany({
+        await tx.orderitem.deleteMany({
           where: {
             orderId: id,
           },
@@ -498,7 +496,7 @@ export async function completeBill(req, res) {
         status: "DRAFT",
       },
       include: {
-         orderitem: true,
+        orderitem: true,
       },
     });
 
@@ -509,9 +507,21 @@ export async function completeBill(req, res) {
       });
     }
 
+    // Calculate the whole-rupee payable amount.
+    const originalTotal = Number(order.totalAmount);
+
+    const finalAmount = Number(
+      Math.round(originalTotal).toFixed(2)
+    );
+
+    // Rounding adjustment.
+    const roundOff = Number(
+      (finalAmount - originalTotal).toFixed(2)
+    );
+
     const payment = validatePayment(
       paymentMethod,
-      order.totalAmount,
+      finalAmount,
       cashAmount,
       upiAmount
     );
@@ -530,9 +540,7 @@ export async function completeBill(req, res) {
 
           data: {
             status: "COMPLETED",
-
             invoiceNumber,
-
             paymentMethod,
 
             cashAmount: payment.cashAmount,
@@ -557,8 +565,14 @@ export async function completeBill(req, res) {
     return res.json({
       success: true,
       message: "Bill completed successfully",
-      data: completedOrder,
+      data: {
+        ...completedOrder,
+        amountBeforeRounding: originalTotal,
+        roundOff,
+        finalAmount,
+      },
     });
+
   } catch (error) {
     console.error("Complete bill error:", error);
 
